@@ -1,0 +1,25 @@
+# Global rule constants. Ratios are permille (1000 = 100%).
+combat:
+  roll_min: 800               # damage roll range
+  roll_max: 1200
+  org_damage: 1000            # share of damage applied to organization
+  strength_damage: 400        # share of damage applied to strength
+  max_reduction: 800          # cap for unit defense + terrain bonus
+  min_supply_effect: 400      # combat power at zero supply
+  extra_direction_width: 500  # extra combat width per additional attack direction
+
+supply:
+  full_range: 80              # km (plains equivalent) with full supply
+  max_range: 240              # km where supply reaches zero
+  attrition: 20               # strength lost per tick at zero supply
+
+vision:
+  range: 1                    # provinces
+
+terrain:
+  - {id: plains,   name: Plains,   move_cost: 1000, defense_bonus: 0,   combat_width: 80}
+  - {id: forest,   name: Forest,   move_cost: 1500, defense_bonus: 150, combat_width: 70}
+  - {id: hills,    name: Hills,    move_cost: 1500, defense_bonus: 250, combat_width: 70}
+  - {id: mountain, name: Mountain, move_cost: 2500, defense_bonus: 400, combat_width: 50}
+  - {id: urban,    name: Urban,    move_cost: 1200, defense_bonus: 300, combat_width: 60}
+  - {id: lake,     name: Lake,     passable: false}

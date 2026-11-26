@@ -1,0 +1,21 @@
+# Two fictional factions facing each other across the middle of the sample map.
+map: sample
+
+factions:
+  - id: azure
+    name: Azure League
+    provinces: [p01, p02, p03, p04, p05, p06, p07, p08]
+  - id: crimson
+    name: Crimson Pact
+    provinces: [p09, p10, p12, p13, p14, p15, p16]
+
+# Division IDs are assigned in this order, starting at 1.
+divisions:
+  - {faction: azure,   type: infantry, name: 1st Infantry,  at: p05}
+  - {faction: azure,   type: infantry, name: 2nd Infantry,  at: p06}
+  - {faction: azure,   type: infantry, name: 3rd Infantry,  at: p08}
+  - {faction: azure,   type: armor,    name: 1st Armored,   at: p02}
+  - {faction: crimson, type: infantry, name: 11th Infantry, at: p09}
+  - {faction: crimson, type: infantry, name: 12th Infantry, at: p10}
+  - {faction: crimson, type: infantry, name: 13th Infantry, at: p12}
+  - {faction: crimson, type: armor,    name: 11th Armored,  at: p15}

@@ -1,0 +1,9 @@
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: server/internal/pb
+    opt: paths=source_relative
+  # Installed by `npm install` in client/; the Makefile puts it on PATH.
+  - local: protoc-gen-es
+    out: client/src/gen
+    opt: target=ts

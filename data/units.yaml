@@ -1,0 +1,22 @@
+# Unit types. defense and reinforce_chance are permille, speed is km per tick.
+- id: infantry
+  name: Infantry
+  max_strength: 10000
+  max_org: 1000
+  attack: 60
+  defense: 200
+  speed: 4
+  org_recovery: 10
+  width: 20
+  reinforce_chance: 20
+
+- id: armor
+  name: Armor
+  max_strength: 6000
+  max_org: 800
+  attack: 110
+  defense: 100
+  speed: 8
+  org_recovery: 8
+  width: 20
+  reinforce_chance: 40
