@@ -432,9 +432,6 @@ func SnapshotFiles(dir string) []string {
 	return names
 }
 
-// LoadLatestSnapshot returns the newest intact snapshot that belongs to h
-// and is not newer than maxTick. It returns nil if there is none; skipped
-// lists the files that were passed over and why.
 // SetAsideSnapshotsAfter renames the snapshots newer than tick to
 // "<name>.orphaned", out of the reach of LoadLatestSnapshot, and returns their
 // new paths. A snapshot newer than the command log belongs to a history the
@@ -457,6 +454,9 @@ func SetAsideSnapshotsAfter(dir string, tick uint64) ([]string, error) {
 	return moved, nil
 }
 
+// LoadLatestSnapshot returns the newest intact snapshot that belongs to h
+// and is not newer than maxTick. It returns nil if there is none; skipped
+// lists the files that were passed over and why.
 func LoadLatestSnapshot(dir string, h Header, maxTick uint64) (st *sim.State, skipped []string) {
 	files := SnapshotFiles(dir)
 	for i := len(files) - 1; i >= 0; i-- {
