@@ -264,3 +264,51 @@ func TestRecordsOutOfOrderAreRejected(t *testing.T) {
 		}
 	}
 }
+
+// A crash while the last HASH was being synced can leave that HASH on disk
+// but not the records before it. That is a torn end, not corruption.
+func TestDamageBeforeAnUnsyncedLastHashIsCutOff(t *testing.T) {
+	dir := t.TempDir()
+	w := simtest.Grid(12, 8, 3, 20)
+	record(t, dir, w, 192, nil) // ends with the HASH of tick 192
+	path := filepath.Join(dir, "commands.log")
+	_, full, _, _ := persist.ReadLog(path)
+	n := len(full)
+	if full[n-1].Kind != persist.RecHash || full[n-2].Kind != persist.RecCommands {
+		t.Fatalf("the log does not end with COMMANDS, HASH")
+	}
+	data, _ := os.ReadFile(path)
+	const hashFrame = 4 + 1 + 8 + len(sim.Hash{}) + 4
+	data[len(data)-hashFrame-6] ^= 1 // inside the COMMANDS record before the last HASH
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	l, _, recs, err := persist.OpenLog(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Close()
+	if len(recs) != n-2 || l.TornBytes == 0 {
+		t.Fatalf("%d records, %d bytes cut; want %d records", len(recs), l.TornBytes, n-2)
+	}
+}
+
+func TestSnapshotsNewerThanTheLogAreSetAside(t *testing.T) {
+	dir := t.TempDir()
+	write := func(tick uint64) {
+		sn := &persist.Snapshot{Tick: tick, State: []byte{1}}
+		if err := persist.WriteSnapshot(dir, sn, 3); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(4)
+	write(8)
+	moved, err := persist.SetAsideSnapshotsAfter(dir, 5)
+	if err != nil || len(moved) != 1 || filepath.Base(moved[0]) != "000000000008.snap.orphaned" {
+		t.Fatalf("moved %v, %v", moved, err)
+	}
+	files := persist.SnapshotFiles(dir)
+	if len(files) != 1 || filepath.Base(files[0]) != "000000000004.snap" {
+		t.Fatalf("snapshots left: %v", files)
+	}
+}

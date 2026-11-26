@@ -233,6 +233,14 @@ func (m *Match) recover(path string) error {
 	if len(recs) > 0 {
 		last = recs[len(recs)-1].Tick
 	}
+	moved, err := persist.SetAsideSnapshotsAfter(m.snapDir(), last)
+	for _, p := range moved {
+		m.log.Warn("snapshot set aside: newer than the command log", "file", p)
+	}
+	if err != nil {
+		wlog.Close()
+		return err
+	}
 	st, skipped := persist.LoadLatestSnapshot(m.snapDir(), h, last)
 	for _, s := range skipped {
 		m.log.Warn("snapshot skipped", "reason", s)

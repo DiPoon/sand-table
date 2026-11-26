@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"sandtable/server/internal/sim"
@@ -179,16 +180,27 @@ func readRecord(b []byte) (r Record, rest []byte, ok bool) {
 }
 
 // tornTail reports whether b, which starts where a record does not read, is
-// the end of the log that a crash left behind. Every HASH record is synced to
-// disk as soon as it is written (see the match loop), so a crash can only
-// damage what comes after the last one: a record being written, or space the
-// file system allocated but never filled. If a HASH record still reads
-// anywhere after the damage, the damage is in data that had reached the disk.
+// the end of the log that a crash left behind. The match loop syncs the log
+// right after each HASH record and writes nothing more until the sync has
+// returned. So a HASH record followed by another record proves that the HASH
+// and everything before it had reached the disk; if such a pair still reads
+// after the damage, the damage is in data that was on disk. Without one, the
+// damage can be what a crash leaves: a record being written, pages written
+// back out of order (a last HASH may have reached the disk while the records
+// before it did not), or space the file system allocated but never filled.
 func tornTail(b []byte) bool {
-	for q := 1; q < len(b); q++ {
-		if r, _, ok := readRecord(b[q:]); ok && r.Kind == RecHash {
+	hash := false // a HASH record reads somewhere after the damage
+	for q := 1; q < len(b); {
+		r, rest, ok := readRecord(b[q:])
+		if !ok {
+			q++
+			continue
+		}
+		if hash {
 			return false
 		}
+		hash = r.Kind == RecHash
+		q = len(b) - len(rest)
 	}
 	return true
 }
@@ -423,6 +435,28 @@ func SnapshotFiles(dir string) []string {
 // LoadLatestSnapshot returns the newest intact snapshot that belongs to h
 // and is not newer than maxTick. It returns nil if there is none; skipped
 // lists the files that were passed over and why.
+// SetAsideSnapshotsAfter renames the snapshots newer than tick to
+// "<name>.orphaned", out of the reach of LoadLatestSnapshot, and returns their
+// new paths. A snapshot newer than the command log belongs to a history the
+// log no longer holds, because the end of the log was cut off. Left in place,
+// it would be loaded once the match runs past its tick again, and replaying
+// the new history from it would fail.
+func SetAsideSnapshotsAfter(dir string, tick uint64) ([]string, error) {
+	var moved []string
+	for _, name := range listSnapshots(dir) {
+		t, err := strconv.ParseUint(strings.TrimSuffix(name, ".snap"), 10, 64)
+		if err != nil || t <= tick {
+			continue
+		}
+		from := filepath.Join(dir, name)
+		if err := os.Rename(from, from+".orphaned"); err != nil {
+			return moved, err
+		}
+		moved = append(moved, from+".orphaned")
+	}
+	return moved, nil
+}
+
 func LoadLatestSnapshot(dir string, h Header, maxTick uint64) (st *sim.State, skipped []string) {
 	files := SnapshotFiles(dir)
 	for i := len(files) - 1; i >= 0; i-- {

@@ -2,6 +2,7 @@ package match
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -159,5 +160,44 @@ func TestShutdownWritesSnapshotOnHashTick(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("%d hash records for tick 6, want 1", n)
+	}
+}
+
+// Cutting the torn end of a log can cut ticks that a snapshot was taken at.
+// Recovery must not start from, or later pick, such a snapshot.
+func TestRecoverySetsAsideSnapshotsNewerThanTheLog(t *testing.T) {
+	dir := t.TempDir()
+	m := newMatch(t, dir) // hash every 2 ticks, snapshot every 4
+	m.phase = PhaseRunning
+	for range 8 {
+		if err := m.tick(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := m.shutdown(); err != nil { // log: HASH 2, 4, 6, 8; snapshots 4, 8
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "commands.log")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const hashFrame = 4 + 1 + 8 + len(sim.Hash{}) + 4
+	data[len(data)-hashFrame-10] ^= 1 // inside HASH 6; HASH 8 after it has nothing after it
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m2 := newMatch(t, dir)
+	defer m2.shutdown()
+	if m2.state.Tick != 4 {
+		t.Fatalf("recovered at tick %d, want 4", m2.state.Tick)
+	}
+	snaps := filepath.Join(dir, "snapshots")
+	if files := persist.SnapshotFiles(snaps); len(files) != 1 || filepath.Base(files[0]) != "000000000004.snap" {
+		t.Fatalf("snapshots in use: %v", files)
+	}
+	if _, err := os.Stat(filepath.Join(snaps, "000000000008.snap.orphaned")); err != nil {
+		t.Fatal(err)
 	}
 }
