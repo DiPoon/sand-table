@@ -357,7 +357,7 @@ func (m *Match) tick() error {
 	for _, c := range m.players {
 		if c != nil {
 			cur := view.Build(m.cfg.World, m.state, c.faction)
-			m.send(c, view.Diff(c.last, cur, m.state))
+			m.send(c, view.Diff(c.last, cur, res.Deaths))
 			c.last = cur
 		}
 	}

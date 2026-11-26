@@ -29,10 +29,10 @@ func TestSnapshotPlusDeltasEqualsView(t *testing.T) {
 		}
 		sawDestroyed, sawOutOfSight := false, false
 		for i := 0; i < 1500; i++ {
-			e.Step(s, sc.Commands(s, 30))
+			res := e.Step(s, sc.Commands(s, 30))
 			for f := 1; f < nf; f++ {
 				cur := view.Build(w, s, sim.FactionID(f))
-				d := view.Diff(last[f], cur, s)
+				d := view.Diff(last[f], cur, res.Deaths)
 				for _, r := range d.Removed {
 					if r.Destroyed {
 						sawDestroyed = true
@@ -104,10 +104,42 @@ func BenchmarkDelta(b *testing.B) {
 		e.Step(s, sc.Commands(s, 30))
 	}
 	prev := view.Build(w, s, 1)
-	e.Step(s, nil)
+	res := e.Step(s, nil)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		view.Diff(prev, view.Build(w, s, 1), s)
+		view.Diff(prev, view.Build(w, s, 1), res.Deaths)
+	}
+}
+
+// A division that leaves sight and dies in the same tick has left sight as
+// far as the viewer knows: only where it died decides.
+func TestDeathOutOfSightIsNotRevealed(t *testing.T) {
+	seen, hidden := sim.ProvinceID(0), sim.ProvinceID(1)
+	provinces := []view.Province{{Controller: 1, Visible: true}, {Controller: 2, Visible: false}}
+	prev := &view.View{Tick: 1, Provinces: provinces, Divisions: []view.Division{
+		{ID: 3, Faction: 1, Province: seen, Own: true},
+		{ID: 7, Faction: 2, Province: seen},
+	}}
+	cur := &view.View{Tick: 2, Provinces: provinces}
+	for _, tc := range []struct {
+		name   string
+		deaths []sim.Death
+		want   map[sim.DivisionID]bool // destroyed?
+	}{
+		{"both alive, out of sight", nil, map[sim.DivisionID]bool{3: false, 7: false}},
+		{"enemy died where it was seen", []sim.Death{{ID: 7, Loc: seen}}, map[sim.DivisionID]bool{3: false, 7: true}},
+		{"enemy moved out of sight and died there", []sim.Death{{ID: 7, Loc: hidden}}, map[sim.DivisionID]bool{3: false, 7: false}},
+		{"own division died out of sight", []sim.Death{{ID: 3, Loc: hidden}}, map[sim.DivisionID]bool{3: true, 7: false}},
+	} {
+		d := view.Diff(prev, cur, tc.deaths)
+		if len(d.Removed) != 2 {
+			t.Fatalf("%s: %d removals", tc.name, len(d.Removed))
+		}
+		for _, r := range d.Removed {
+			if r.Destroyed != tc.want[r.ID] {
+				t.Errorf("%s: division %d destroyed=%v, want %v", tc.name, r.ID, r.Destroyed, tc.want[r.ID])
+			}
+		}
 	}
 }

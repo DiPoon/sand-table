@@ -124,7 +124,7 @@ func (e *Engine) Step(s *State, cmds []Command) StepResult {
 	e.supply(s)
 	e.combat(s)
 	e.recover(s)
-	compact(s)
+	res.Deaths = compact(s, res.Deaths)
 	return res
 }
 
@@ -234,18 +234,23 @@ func (e *Engine) recover(s *State) {
 	}
 }
 
-func compact(s *State) {
+// compact removes dead divisions and appends them to deaths.
+func compact(s *State, deaths []Death) []Death {
 	n := 0
 	for i := range s.Divisions {
-		if alive(&s.Divisions[i]) {
-			if n != i {
-				s.Divisions[n] = s.Divisions[i]
-			}
-			n++
+		d := &s.Divisions[i]
+		if !alive(d) {
+			deaths = append(deaths, Death{ID: d.ID, Loc: d.Loc})
+			continue
 		}
+		if n != i {
+			s.Divisions[n] = *d
+		}
+		n++
 	}
 	for i := n; i < len(s.Divisions); i++ {
 		s.Divisions[i] = Division{}
 	}
 	s.Divisions = s.Divisions[:n]
+	return deaths
 }

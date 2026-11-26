@@ -418,3 +418,46 @@ func BenchmarkSnapshot(b *testing.B) {
 		buf = sim.AppendState(buf[:0], s)
 	}
 }
+
+// Step reports every division it removed, in ID order, with the province it
+// died in: the one it stood in before the step, or the next one if it moved.
+func TestStepReportsDeaths(t *testing.T) {
+	w := simtest.Grid(12, 8, 3, 20)
+	e := sim.NewEngine(w)
+	s := e.NewState(42)
+	sc := simtest.NewScript(w, 7)
+	total := 0
+	for i := 0; i < 1500; i++ {
+		before := map[sim.DivisionID]sim.ProvinceID{}
+		for _, d := range s.Divisions {
+			before[d.ID] = d.Loc
+		}
+		res := e.Step(s, sc.Commands(s, 30))
+		var gone []sim.DivisionID
+		for _, d := range s.Divisions {
+			delete(before, d.ID)
+		}
+		for id := range before {
+			gone = append(gone, id)
+		}
+		if len(gone) != len(res.Deaths) {
+			t.Fatalf("tick %d: %d divisions removed, %d deaths reported", s.Tick, len(gone), len(res.Deaths))
+		}
+		for k, dd := range res.Deaths {
+			if k > 0 && res.Deaths[k-1].ID >= dd.ID {
+				t.Fatalf("tick %d: deaths not in ID order", s.Tick)
+			}
+			from, ok := before[dd.ID]
+			if !ok {
+				t.Fatalf("tick %d: division %d reported dead but still there", s.Tick, dd.ID)
+			}
+			if _, adjacent := w.EdgeCost(from, dd.Loc); dd.Loc != from && !adjacent {
+				t.Fatalf("tick %d: division %d died in province %d, far from %d", s.Tick, dd.ID, dd.Loc, from)
+			}
+		}
+		total += len(res.Deaths)
+	}
+	if total == 0 {
+		t.Fatal("nobody died: the test does not exercise deaths")
+	}
+}

@@ -201,6 +201,16 @@ type Rejection struct {
 	Reason RejectReason
 }
 
+// Death is a division that died during a step, and the province it was in.
+type Death struct {
+	ID  DivisionID
+	Loc ProvinceID
+}
+
 type StepResult struct {
 	Rejections []Rejection
+	// Deaths lists the divisions the step removed, in ID order. A division
+	// can move and die in the same step, so this is the only record of where
+	// it died; views need it to hide deaths the viewer could not see.
+	Deaths []Death
 }

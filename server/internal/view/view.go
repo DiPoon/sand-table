@@ -3,6 +3,7 @@
 package view
 
 import (
+	"cmp"
 	"slices"
 
 	"sandtable/server/internal/sim"
@@ -129,8 +130,9 @@ type Delta struct {
 	Removed   []Removed
 }
 
-// Diff returns the delta from prev to cur. s is the state cur was built from.
-func Diff(prev, cur *View, s *sim.State) *Delta {
+// Diff returns the delta from prev to cur. deaths are the divisions that died
+// in the step from prev to cur (sim.StepResult.Deaths).
+func Diff(prev, cur *View, deaths []sim.Death) *Delta {
 	d := &Delta{Tick: cur.Tick}
 	for p := range cur.Provinces {
 		if cur.Provinces[p] != prev.Provinces[p] {
@@ -142,8 +144,15 @@ func Diff(prev, cur *View, s *sim.State) *Delta {
 		switch {
 		case j == len(cur.Divisions) || (i < len(prev.Divisions) && prev.Divisions[i].ID < cur.Divisions[j].ID):
 			old := &prev.Divisions[i]
-			// Do not reveal a death the viewer could not have seen.
-			destroyed := s.FindDivision(old.ID) == nil && (old.Own || cur.Provinces[old.Province].Visible)
+			// Do not reveal a death the viewer could not have seen. Where it died
+			// counts, not where it was last seen: it may have left sight and died
+			// in the same tick.
+			destroyed := false
+			if k, dead := slices.BinarySearchFunc(deaths, old.ID, func(x sim.Death, id sim.DivisionID) int {
+				return cmp.Compare(x.ID, id)
+			}); dead {
+				destroyed = old.Own || cur.Provinces[deaths[k].Loc].Visible
+			}
 			d.Removed = append(d.Removed, Removed{ID: old.ID, Destroyed: destroyed})
 			i++
 		case i == len(prev.Divisions) || cur.Divisions[j].ID < prev.Divisions[i].ID:
