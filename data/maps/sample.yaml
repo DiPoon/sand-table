@@ -1,0 +1,56 @@
+# Sample map: a 4x4 grid of fictional provinces.
+#
+#   p01 - p02 - p03 - p04
+#    |     |  \  |     |
+#   p05 - p06 - p07 - p08
+#    |     |     |  /  |
+#   p09 - p10 - p11 - p12      (p11 is a lake)
+#    |     |  \  |     |
+#   p13 - p14 - p15 - p16
+provinces:
+  - {id: p01, name: Ashford,      terrain: plains,   pos: [100, 100]}
+  - {id: p02, name: Brenwick,     terrain: urban,    pos: [200, 100], hub: true}
+  - {id: p03, name: Caldmoor,     terrain: plains,   pos: [300, 100]}
+  - {id: p04, name: Dunhollow,    terrain: forest,   pos: [400, 100]}
+  - {id: p05, name: Eastmere,     terrain: hills,    pos: [100, 200]}
+  - {id: p06, name: Fallowfield,  terrain: plains,   pos: [200, 200]}
+  - {id: p07, name: Greyhaven,    terrain: forest,   pos: [300, 200]}
+  - {id: p08, name: Highmoor,     terrain: plains,   pos: [400, 200]}
+  - {id: p09, name: Ironbridge,   terrain: plains,   pos: [100, 300]}
+  - {id: p10, name: Jadewater,    terrain: hills,    pos: [200, 300]}
+  - {id: p11, name: Kestrel Lake, terrain: lake,     pos: [300, 300]}
+  - {id: p12, name: Larkspur,     terrain: plains,   pos: [400, 300]}
+  - {id: p13, name: Marrowdale,   terrain: forest,   pos: [100, 400]}
+  - {id: p14, name: Northgate,    terrain: plains,   pos: [200, 400]}
+  - {id: p15, name: Oakhaven,     terrain: urban,    pos: [300, 400], hub: true}
+  - {id: p16, name: Pinecrest,    terrain: mountain, pos: [400, 400]}
+
+# [a, b, distance in km]. Edges are bidirectional; list each one once.
+edges:
+  - [p01, p02, 40]
+  - [p02, p03, 40]
+  - [p03, p04, 40]
+  - [p05, p06, 40]
+  - [p06, p07, 40]
+  - [p07, p08, 40]
+  - [p09, p10, 40]
+  - [p10, p11, 40]
+  - [p11, p12, 40]
+  - [p13, p14, 40]
+  - [p14, p15, 40]
+  - [p15, p16, 40]
+  - [p01, p05, 40]
+  - [p02, p06, 40]
+  - [p03, p07, 40]
+  - [p04, p08, 40]
+  - [p05, p09, 40]
+  - [p06, p10, 40]
+  - [p07, p11, 40]
+  - [p08, p12, 40]
+  - [p09, p13, 40]
+  - [p10, p14, 40]
+  - [p11, p15, 40]
+  - [p12, p16, 40]
+  - [p02, p07, 55]
+  - [p07, p12, 55]
+  - [p10, p15, 55]
