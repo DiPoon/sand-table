@@ -2,7 +2,7 @@
 // camera. Everything is drawn in screen pixels so that lines and text keep
 // their size at any zoom.
 
-import { type Camera, type MapGeometry, type Point, progressRatio, towards } from "./geometry";
+import { type Camera, type MapGeometry, type Point, progressRatio, shownCounters, towards } from "./geometry";
 import type { Division, StaticInfo, Store } from "./store";
 
 // ---- Colours ----
@@ -341,7 +341,7 @@ export class Renderer {
     const st = this.st!;
     this.boxes = [];
 
-    // Group by province; own divisions first so that they are not folded away.
+    // Group by province; own divisions first, so that they are the last to be folded away.
     const by = new Map<number, Division[]>();
     for (const d of store.divisions) {
       if (d.province < 0 || d.province >= geo.sites.length) continue;
@@ -357,8 +357,8 @@ export class Renderer {
       list.sort((a, b) => Number(b.own) - Number(a.own) || a.id - b.id);
       const cell = geo.spacing[prov] * cam.scale;
       const { w, h, gap } = this.counterSize(cell);
-      const fit = Math.max(1, Math.floor((cell * 0.92 + gap) / (w + gap)));
-      const shown = list.length > fit ? list.slice(0, fit - 1) : list;
+      const fit = Math.floor((cell * 0.92 + gap) / (w + gap));
+      const shown = list.slice(0, shownCounters(list.length, fit));
       const items = shown.length + (shown.length < list.length ? 1 : 0);
       const site = geo.sites[prov];
       const s = cam.toScreen(site);
@@ -381,8 +381,8 @@ export class Renderer {
 
     for (const p of placed) if (p.d.own && p.d.path.length > 0) this.drawPath(cam, p, hl.selected.has(p.d.id));
     for (const p of placed) {
-      const next = p.d.own ? p.d.path[0] : undefined;
-      if (next !== undefined && !p.d.retreating && store.provinces[next]?.inBattle) this.drawAttack(cam, p, next);
+      const target = store.attackTarget(p.d);
+      if (target !== undefined) this.drawAttack(cam, p, target);
     }
     for (const p of placed) {
       this.drawCounter(p.d, p.x, p.y, p.w, p.h, hl.selected.has(p.d.id));

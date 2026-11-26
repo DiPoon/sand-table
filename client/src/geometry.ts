@@ -146,6 +146,17 @@ export function towards(from: Point, to: Point, ratio: number): Point {
   return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
 }
 
+/**
+ * How many of `count` counters in one province to draw when `fit` fit side by
+ * side; the rest fold into a "+N" box. One counter always shows, even when the
+ * box does not fit beside it, so that a zoomed-out stack can still be clicked
+ * and its first division still shows where it is going.
+ */
+export function shownCounters(count: number, fit: number): number {
+  if (count <= Math.max(1, fit)) return count;
+  return Math.max(1, fit - 1);
+}
+
 /** Maps world coordinates to screen pixels: screen = (world - origin) × scale. */
 export class Camera {
   x = 0;

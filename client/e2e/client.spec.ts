@@ -74,6 +74,11 @@ test.describe.serial("web client", () => {
     await a.goto("/");
     await expect(a.locator(".join-status")).toContainText("대기실");
     await expect(a.locator(".faction")).toHaveCount(2);
+    // The list refreshes every 2 seconds without replacing the buttons: focus and clicks survive it.
+    const crimsonButton = await a.locator('.faction[data-key="crimson"]').elementHandle();
+    await crimsonButton!.focus();
+    await a.waitForTimeout(2500);
+    expect(await crimsonButton!.evaluate((b) => b.isConnected && document.activeElement === b)).toBe(true);
     await shot(a, "1-join");
     await joinAs(a, "alice", "azure");
     await expect(a.locator(".lobby")).toBeVisible();
@@ -199,6 +204,18 @@ test.describe.serial("web client", () => {
     await rightClickProvince(page, "p11");
     await expect(page.locator(".toast.error").first()).toContainText("그곳으로 가는 경로가 없습니다");
     await shot(page, "11-rejected");
+
+    // Both into Greyhaven. Zoomed all the way out, the stack still shows one counter beside "+1".
+    await rightClickProvince(page, "p07");
+    await page.waitForFunction((p) => (window as any).sandtable.store.division(4)?.province === p, greyhaven, { timeout: 30_000 });
+    const center = await g<Pt>(page, `g.screenOf(${greyhaven})`);
+    await page.mouse.move(center.x, center.y);
+    for (let i = 0; i < 10; i++) await page.mouse.wheel(0, 400);
+    await page.waitForFunction(() => {
+      const g = (window as any).sandtable;
+      return g.cam.scale === g.cam.minScale && (!!g.counterOf(2) || !!g.counterOf(4));
+    });
+    await shot(page, "11b-zoomed-out");
 
     // Esc clears the selection.
     await page.keyboard.press("Escape");

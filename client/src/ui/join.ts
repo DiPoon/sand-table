@@ -31,6 +31,7 @@ export class JoinScreen {
   private readonly button: HTMLButtonElement;
   private readonly message: HTMLElement;
   private info: MatchInfo | null = null;
+  private buttons: { key: string; button: HTMLButtonElement; state: HTMLElement }[] = [];
   private choice = "";
   private timer: ReturnType<typeof setTimeout> | null = null;
   private abort = new AbortController();
@@ -86,6 +87,7 @@ export class JoinScreen {
       this.status.textContent = S.matchLoadFailed;
       this.status.classList.add("error");
       this.list.replaceChildren();
+      this.buttons = [];
       console.warn(err);
     }
     // Keep the taken/free state current while the player decides.
@@ -98,22 +100,35 @@ export class JoinScreen {
     this.status.classList.remove("error");
     this.status.textContent = S.matchLine(info.id, S.phase[phase], info.tick);
     if (info.factions.find((f) => f.key === this.choice)?.taken) this.choice = "";
-    this.list.replaceChildren();
+    // Update the buttons in place: replacing them on every refresh would lose
+    // a click that spans the refresh, and the keyboard focus.
+    const keys = info.factions.map((f) => f.key).join("\n");
+    if (keys !== this.buttons.map((b) => b.key).join("\n")) this.build(info);
     info.factions.forEach((f, i) => {
-      const b = el("button", "faction", this.list);
-      b.type = "button";
-      b.setAttribute("role", "radio");
-      b.setAttribute("aria-checked", String(f.key === this.choice));
-      b.dataset.key = f.key;
-      b.disabled = f.taken;
-      swatch(factionColor(i + 1), b);
-      el("span", "faction-name", b, f.name || f.key);
-      el("span", "faction-state", b, f.taken ? S.takenBy(f.player || "?") : S.free);
-      b.addEventListener("click", () => {
+      const { button, state } = this.buttons[i];
+      button.disabled = f.taken;
+      button.setAttribute("aria-checked", String(f.key === this.choice));
+      state.textContent = f.taken ? S.takenBy(f.player || "?") : S.free;
+    });
+  }
+
+  /** Creates one button per faction. The match's factions do not change, so this runs once. */
+  private build(info: MatchInfo) {
+    this.list.replaceChildren();
+    this.buttons = info.factions.map((f, i) => {
+      const button = el("button", "faction", this.list);
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      button.dataset.key = f.key;
+      swatch(factionColor(i + 1), button);
+      el("span", "faction-name", button, f.name || f.key);
+      const state = el("span", "faction-state", button);
+      button.addEventListener("click", () => {
         this.choice = f.key;
         this.message.textContent = "";
         this.render();
       });
+      return { key: f.key, button, state };
     });
   }
 

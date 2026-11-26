@@ -306,4 +306,17 @@ export class Store {
   divisionsIn(province: number): Division[] {
     return this.divisions.filter((d) => d.province === province);
   }
+
+  /**
+   * The province an own division is attacking: the next one on its path, if a
+   * battle goes on there and the division's faction does not hold it. Control
+   * changes when a division arrives, so in a province we hold the defenders
+   * are ours, and a division moving in reinforces them.
+   */
+  attackTarget(d: Division): number | undefined {
+    if (!d.own || d.retreating || d.path.length === 0) return undefined;
+    const next = d.path[0];
+    const p = this.provinces[next];
+    return p?.inBattle && p.controller !== d.faction ? next : undefined;
+  }
 }

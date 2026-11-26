@@ -77,8 +77,9 @@ export class InfoPanel {
     }
     const state: string[] = [];
     if (d.retreating) state.push(S.retreating);
-    else if (d.own && d.path.length > 0 && store.provinces[d.path[0]]?.inBattle) {
-      state.push(S.attacking(this.provName(store, d.path[0])));
+    else {
+      const target = store.attackTarget(d);
+      if (target !== undefined) state.push(S.attacking(this.provName(store, target)));
     }
     if (state.length) el("p", "status-line", this.root, state.join(" · "));
   }

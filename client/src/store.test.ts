@@ -180,6 +180,24 @@ describe("Store", () => {
     expect(fresh.delta(wire(DeltaSchema, { tick: 1n }))).toBe(false);
   });
 
+  it("tells an attack from reinforcing a province we hold", () => {
+    // The 1st (own, in A) is on its way to B, which azure holds.
+    store.delta(wire(DeltaSchema, { tick: 11n, provinces: [{ id: 1, controller: 1, visible: true, inBattle: true }] }));
+    const d = store.division(1)!;
+    expect(d.path).toEqual([1]);
+    expect(store.attackTarget(d)).toBeUndefined(); // crimson attacks B; the 1st reinforces it
+
+    store.delta(wire(DeltaSchema, { tick: 12n, provinces: [{ id: 1, controller: 2, visible: true, inBattle: true }] }));
+    expect(store.attackTarget(store.division(1)!)).toBe(1); // crimson took B; the 1st attacks it
+
+    const now = store.division(1)!;
+    expect(store.attackTarget({ ...now, retreating: true })).toBeUndefined();
+    expect(store.attackTarget({ ...now, own: false })).toBeUndefined();
+    expect(store.attackTarget({ ...now, path: [] })).toBeUndefined();
+    store.delta(wire(DeltaSchema, { tick: 13n, provinces: [{ id: 1, controller: 2, visible: true }] }));
+    expect(store.attackTarget(store.division(1)!)).toBeUndefined(); // the battle is over
+  });
+
   it("keeps the static object across a reconnect with the same data", () => {
     const before = store.static;
     store.welcome(welcome);

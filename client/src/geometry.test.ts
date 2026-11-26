@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { StaticDataSchema } from "./gen/sandtable/v1/sandtable_pb";
-import { Camera, MapGeometry, progressRatio, towards, type Point } from "./geometry";
+import { Camera, MapGeometry, progressRatio, shownCounters, towards, type Point } from "./geometry";
 import { StaticInfo, type Division } from "./store";
 
 // The sample map's 4×4 grid, 100 apart.
@@ -151,5 +151,19 @@ describe("Camera", () => {
     const moved = c.toScreen({ x: 10, y: 10 });
     expect(moved.x - before.x).toBeCloseTo(5);
     expect(moved.y - before.y).toBeCloseTo(-3);
+  });
+});
+
+describe("shownCounters", () => {
+  it("shows everything that fits, and folds the rest behind one box", () => {
+    expect(shownCounters(3, 3)).toBe(3);
+    expect(shownCounters(4, 3)).toBe(2); // two counters and "+2"
+    expect(shownCounters(1, 0)).toBe(1);
+  });
+
+  it("always shows one counter, even when zoomed out", () => {
+    expect(shownCounters(2, 1)).toBe(1); // one counter and "+1"
+    expect(shownCounters(5, 1)).toBe(1);
+    expect(shownCounters(5, 0)).toBe(1);
   });
 });
