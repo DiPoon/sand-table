@@ -85,6 +85,9 @@ func encodeHeader(h Header) []byte {
 type Log struct {
 	f   *os.File
 	buf []byte
+
+	// TornBytes is how much OpenLog cut off the end of the file.
+	TornBytes int64
 }
 
 // CreateLog starts a new log. It fails if the file exists.
@@ -101,8 +104,10 @@ func CreateLog(path string, h Header) (*Log, error) {
 	return l, l.Sync()
 }
 
-// ReadLog reads a log file. Records after the first torn or corrupt frame
-// are ignored; validLen is the length of the intact prefix.
+// ReadLog reads a log file. A crash can leave the end of the log damaged:
+// reading stops there, and validLen is the length of the intact prefix.
+// Damage anywhere else is an error, because cutting the log there would
+// silently throw away the intact records after it (see tornTail).
 func ReadLog(path string) (h Header, recs []Record, validLen int64, err error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -126,37 +131,66 @@ func ReadLog(path string) (h Header, recs []Record, validLen int64, err error) {
 	}
 	copy(h.DataHash[:], d.B)
 
-	for {
-		payload, next, ok := unframe(rest)
+	for len(rest) > 0 {
+		r, next, ok := readRecord(rest)
 		if !ok {
-			break
-		}
-		d := sim.Dec{B: payload}
-		r := Record{Kind: d.U8(), Tick: d.U64()}
-		switch r.Kind {
-		case RecCommands:
-			n := d.Len(10)
-			r.Commands = make([]sim.Command, n)
-			for i := range r.Commands {
-				r.Commands[i] = sim.ReadCommand(&d)
+			if !tornTail(rest) {
+				return h, nil, 0, fmt.Errorf("%s: the record at byte %d is corrupt, and intact records follow it; "+
+					"refusing to cut them off. Restore the log from a backup or move the match directory away",
+					path, len(data)-len(rest))
 			}
-		case RecHash:
-			if len(d.B) == len(r.Hash) {
-				copy(r.Hash[:], d.B)
-				d.B = nil
-			} else {
-				d.Err = sim.ErrCorrupt
-			}
-		default:
-			d.Err = sim.ErrCorrupt
-		}
-		if d.Err != nil || len(d.B) != 0 {
 			break
 		}
 		recs = append(recs, r)
 		rest = next
 	}
 	return h, recs, int64(len(data) - len(rest)), nil
+}
+
+// readRecord reads one framed record from the start of b.
+func readRecord(b []byte) (r Record, rest []byte, ok bool) {
+	payload, rest, ok := unframe(b)
+	if !ok {
+		return r, b, false
+	}
+	d := sim.Dec{B: payload}
+	r = Record{Kind: d.U8(), Tick: d.U64()}
+	switch r.Kind {
+	case RecCommands:
+		n := d.Len(10)
+		r.Commands = make([]sim.Command, n)
+		for i := range r.Commands {
+			r.Commands[i] = sim.ReadCommand(&d)
+		}
+	case RecHash:
+		if len(d.B) == len(r.Hash) {
+			copy(r.Hash[:], d.B)
+			d.B = nil
+		} else {
+			d.Err = sim.ErrCorrupt
+		}
+	default:
+		d.Err = sim.ErrCorrupt
+	}
+	if d.Err != nil || len(d.B) != 0 {
+		return Record{}, b, false
+	}
+	return r, rest, true
+}
+
+// tornTail reports whether b, which starts where a record does not read, is
+// the end of the log that a crash left behind. Every HASH record is synced to
+// disk as soon as it is written (see the match loop), so a crash can only
+// damage what comes after the last one: a record being written, or space the
+// file system allocated but never filled. If a HASH record still reads
+// anywhere after the damage, the damage is in data that had reached the disk.
+func tornTail(b []byte) bool {
+	for q := 1; q < len(b); q++ {
+		if r, _, ok := readRecord(b[q:]); ok && r.Kind == RecHash {
+			return false
+		}
+	}
+	return true
 }
 
 // OpenLog reads an existing log, cuts off a torn tail and opens it for appending.
@@ -169,14 +203,18 @@ func OpenLog(path string) (*Log, Header, []Record, error) {
 	if err != nil {
 		return nil, h, nil, err
 	}
-	if err := f.Truncate(validLen); err == nil {
+	st, err := f.Stat()
+	if err == nil {
+		err = f.Truncate(validLen)
+	}
+	if err == nil {
 		_, err = f.Seek(validLen, io.SeekStart)
 	}
 	if err != nil {
 		f.Close()
 		return nil, h, nil, err
 	}
-	return &Log{f: f}, h, recs, nil
+	return &Log{f: f, TornBytes: st.Size() - validLen}, h, recs, nil
 }
 
 func (l *Log) write(payload []byte) error {
@@ -210,6 +248,27 @@ func (l *Log) Close() error { return errors.Join(l.f.Sync(), l.f.Close()) }
 
 // ---- Replay ----
 
+// inOrder checks that r may follow prev in a log. Ticks never go back, and a
+// tick has at most one COMMANDS record, written before the tick ran and so
+// before that tick's HASH record.
+func inOrder(prev, r *Record) error {
+	if r.Tick < prev.Tick || r.Kind == RecCommands && r.Tick == prev.Tick {
+		return fmt.Errorf("log records out of order: %s at tick %d after %s at tick %d",
+			kindName(r.Kind), r.Tick, kindName(prev.Kind), prev.Tick)
+	}
+	return nil
+}
+
+func kindName(k uint8) string {
+	switch k {
+	case RecCommands:
+		return "COMMANDS"
+	case RecHash:
+		return "HASH"
+	}
+	return fmt.Sprintf("kind %d", k)
+}
+
 // MismatchError reports a state hash that differs from the recorded one.
 type MismatchError struct {
 	Tick      uint64
@@ -223,12 +282,12 @@ func (e *MismatchError) Error() string {
 // Replay applies the records after s.Tick to s and checks every recorded
 // hash from s.Tick on. It leaves s at the tick of the last record.
 func Replay(e *sim.Engine, s *sim.State, recs []Record) error {
-	var last uint64
-	for _, r := range recs {
-		if r.Tick < last {
-			return fmt.Errorf("log records out of order at tick %d", r.Tick)
+	for i, r := range recs {
+		if i > 0 {
+			if err := inOrder(&recs[i-1], &r); err != nil {
+				return err
+			}
 		}
-		last = r.Tick
 		switch r.Kind {
 		case RecCommands:
 			if r.Tick <= s.Tick {
@@ -434,6 +493,15 @@ func VerifyDir(w *sim.World, dir string) (Report, error) {
 	}
 	// Replay one record at a time so snapshots between records are checked too.
 	for i, r := range recs {
+		if i > 0 {
+			if err := inOrder(&recs[i-1], &r); err != nil {
+				return rep, err
+			}
+		}
+		// From tick 0 nothing is skipped: a record the state has already passed is an error.
+		if r.Tick < s.Tick || r.Kind == RecCommands && r.Tick <= s.Tick {
+			return rep, fmt.Errorf("%s record for tick %d comes after tick %d was replayed", kindName(r.Kind), r.Tick, s.Tick)
+		}
 		for len(snaps) > 0 && snaps[0].tick < r.Tick && s.Tick < snaps[0].tick {
 			e.Step(s, nil)
 			if err := check(); err != nil {

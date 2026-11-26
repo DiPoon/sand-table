@@ -157,3 +157,110 @@ func TestReplayDetectsDivergence(t *testing.T) {
 		t.Fatalf("want a hash mismatch, got %v", err)
 	}
 }
+
+func TestCorruptionBeforeTheEndIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	w := simtest.Grid(12, 8, 3, 20)
+	record(t, dir, w, 200, nil)
+	path := filepath.Join(dir, "commands.log")
+	clean, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One flipped byte anywhere in the first half: a length, a payload or a checksum.
+	for at := len(clean) / 8; at < len(clean)/2; at += len(clean) / 97 {
+		data := append([]byte(nil), clean...)
+		data[at] ^= 0x40
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, _, err := persist.OpenLog(path); err == nil {
+			t.Fatalf("byte %d flipped: the log was opened", at)
+		}
+		if st, _ := os.Stat(path); st.Size() != int64(len(clean)) {
+			t.Fatalf("byte %d flipped: the log was cut to %d bytes", at, st.Size())
+		}
+		if _, err := persist.VerifyDir(w, dir); err == nil {
+			t.Fatalf("byte %d flipped: VerifyDir found nothing", at)
+		}
+	}
+}
+
+func TestDamagedEndIsCutOff(t *testing.T) {
+	dir := t.TempDir()
+	w := simtest.Grid(12, 8, 3, 20)
+	record(t, dir, w, 200, nil) // records after the last hash (tick 192) were never synced
+	path := filepath.Join(dir, "commands.log")
+	clean, _ := os.ReadFile(path)
+	_, full, _, _ := persist.ReadLog(path)
+
+	for _, tc := range []struct {
+		name string
+		data []byte
+		recs int
+	}{
+		{"last record damaged", func() []byte { d := append([]byte(nil), clean...); d[len(d)-6] ^= 1; return d }(), len(full) - 1},
+		{"zeros the file system never filled", append(append([]byte(nil), clean...), make([]byte, 4096)...), len(full)},
+	} {
+		if err := os.WriteFile(path, tc.data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		l, _, recs, err := persist.OpenLog(path)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		l.Close()
+		if len(recs) != tc.recs || l.TornBytes == 0 {
+			t.Fatalf("%s: %d records, %d bytes cut; want %d records", tc.name, len(recs), l.TornBytes, tc.recs)
+		}
+	}
+}
+
+func TestRecordsOutOfOrderAreRejected(t *testing.T) {
+	w := simtest.Grid(12, 8, 3, 20)
+	h := persist.Header{SimVersion: sim.Version, MatchID: "m", Scenario: w.Scenario, Seed: 42, DataHash: sim.HashWorld(w)}
+	type rec struct {
+		kind uint8
+		tick uint64
+	}
+	for _, tc := range []struct {
+		name string
+		recs []rec
+		ok   bool
+	}{
+		{"in order", []rec{{persist.RecCommands, 40}, {persist.RecCommands, 50}}, true},
+		{"tick goes back", []rec{{persist.RecCommands, 50}, {persist.RecCommands, 40}}, false},
+		{"two command records for one tick", []rec{{persist.RecCommands, 50}, {persist.RecCommands, 50}}, false},
+		{"commands after the hash of their tick", []rec{{persist.RecHash, 24}, {persist.RecCommands, 24}}, false},
+	} {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "commands.log")
+		l, err := persist.CreateLog(path, h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Hash records carry the true hash, so that only the order can be wrong.
+		e := sim.NewEngine(w)
+		s := e.NewState(h.Seed)
+		for _, r := range tc.recs {
+			if r.kind == persist.RecCommands {
+				l.AppendCommands(r.tick, nil)
+				continue
+			}
+			for s.Tick < r.tick {
+				e.Step(s, nil)
+			}
+			l.AppendHash(r.tick, sim.HashState(s))
+		}
+		l.Close()
+		_, recs, _, _ := persist.ReadLog(path)
+		_, verr := persist.VerifyDir(w, dir)
+		rerr := persist.Replay(sim.NewEngine(w), sim.NewEngine(w).NewState(h.Seed), recs)
+		if tc.ok && (verr != nil || rerr != nil) {
+			t.Fatalf("%s: VerifyDir %v, Replay %v", tc.name, verr, rerr)
+		}
+		if !tc.ok && (verr == nil || rerr == nil) {
+			t.Fatalf("%s: VerifyDir %v, Replay %v; want both to fail", tc.name, verr, rerr)
+		}
+	}
+}
