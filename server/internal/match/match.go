@@ -90,10 +90,21 @@ type Client struct {
 	token   string
 	last    *view.View
 	closed  bool
+	dropErr *Error // why the match dropped the client, when it could not say so through Out
 }
 
 func NewClient(name string) *Client {
 	return &Client{Name: name, Out: make(chan any, 256)}
+}
+
+// DropError returns the error to report after Out was closed because the
+// client could not keep up: the full queue had no room left for it. Call it
+// only after Out is closed.
+func (c *Client) DropError() (Error, bool) {
+	if c.dropErr == nil {
+		return Error{}, false
+	}
+	return *c.dropErr, true
 }
 
 type Config struct {
@@ -132,9 +143,14 @@ type Match struct {
 	cmds    []sim.Command
 	perFac  []int
 
+	// statusDirty is set when phase, pause, speed, host or players changed
+	// during the current event; settle sends the status once the event is done.
+	statusDirty bool
+
 	wlog     *persist.Log
 	header   persist.Header
 	lastHash uint64
+	lastSnap uint64
 	snaps    chan *persist.Snapshot
 	snapWG   sync.WaitGroup
 
@@ -202,6 +218,9 @@ func (m *Match) recover(path string) error {
 	if err != nil {
 		return err
 	}
+	if wlog.TornBytes > 0 {
+		m.log.Warn("cut off the torn end of the command log", "bytes", wlog.TornBytes)
+	}
 	want := m.header
 	want.Seed = h.Seed // the seed of an existing match comes from its log
 	if h != want {
@@ -223,6 +242,7 @@ func (m *Match) recover(path string) error {
 		st = m.eng.NewState(h.Seed)
 	} else {
 		from = fmt.Sprintf("snapshot at tick %d", st.Tick)
+		m.lastSnap = st.Tick
 	}
 	if err := persist.Replay(m.eng, st, recs); err != nil {
 		wlog.Close()
@@ -259,6 +279,11 @@ func (m *Match) Command(c *Client, seq uint32, cmd sim.Command) {
 	m.do(func() { m.command(c, seq, cmd) })
 }
 
+// Kick sends a fatal error to the client and drops it.
+func (m *Match) Kick(c *Client, code ErrCode, msg string) {
+	m.do(func() { m.reject(c, code, msg, true) })
+}
+
 // Done is closed when Run has returned.
 func (m *Match) Done() <-chan struct{} { return m.done }
 
@@ -284,12 +309,14 @@ func (m *Match) Run(ctx context.Context) error {
 			return m.shutdown()
 		case f := <-m.inbox:
 			f()
+			m.settle()
 			if !was && m.running() {
 				m.next = time.Now().Add(m.interval())
 			}
 		case <-tc:
 			start := time.Now()
 			failure = m.tick()
+			m.settle()
 			// No catch-up: if the tick overran, the next one starts right away.
 			m.next = start.Add(m.interval())
 		}
@@ -364,10 +391,17 @@ func (m *Match) persistHash(snapshot bool) error {
 	}
 	m.lastHash = m.state.Tick
 	if snapshot {
-		m.snaps <- &persist.Snapshot{SimVersion: sim.Version, MatchID: m.cfg.ID, DataHash: m.header.DataHash,
-			Tick: m.state.Tick, StateHash: hash, State: enc}
+		m.queueSnapshot(enc, hash)
 	}
 	return nil
+}
+
+// queueSnapshot hands a snapshot of the current tick to the writer. The log
+// must already be synced up to this tick.
+func (m *Match) queueSnapshot(enc []byte, hash sim.Hash) {
+	m.snaps <- &persist.Snapshot{SimVersion: sim.Version, MatchID: m.cfg.ID, DataHash: m.header.DataHash,
+		Tick: m.state.Tick, StateHash: hash, State: enc}
+	m.lastSnap = m.state.Tick
 }
 
 func (m *Match) shutdown() error {
@@ -380,9 +414,16 @@ func (m *Match) shutdown() error {
 	if m.wlog == nil {
 		return nil
 	}
+	// A graceful shutdown always leaves a snapshot of the last tick, and that
+	// tick's hash in the log.
 	var err error
-	if m.state.Tick > m.lastHash {
+	switch {
+	case m.state.Tick > m.lastHash:
 		err = m.persistHash(true)
+	case m.state.Tick > m.lastSnap:
+		// The hash of this tick is logged and synced already.
+		enc := sim.AppendState(nil, m.state)
+		m.queueSnapshot(enc, sim.Hash(sha256.Sum256(enc)))
 	}
 	close(m.snaps)
 	m.snapWG.Wait()
@@ -400,8 +441,8 @@ func (m *Match) send(c *Client, msg any) {
 	default:
 		// A slow client never blocks the tick loop: it is dropped and must rejoin.
 		m.log.Warn("dropping slow client", "name", c.Name, "faction", c.faction)
+		c.dropErr = &Error{Code: ErrSlowConsumer, Message: "the send queue is full", Fatal: true}
 		m.drop(c)
-		m.afterLeave()
 	}
 }
 
@@ -414,6 +455,22 @@ func (m *Match) drop(c *Client) {
 	close(c.Out)
 	if c.faction != sim.NoFaction && m.players[c.faction] == c {
 		m.players[c.faction] = nil
+		m.statusDirty = true
+	}
+}
+
+// settle finishes an event (a message from a client, or a tick). It pauses
+// a running match that nobody is connected to any more, and sends the new
+// status to everyone. Changes during the event only mark the status dirty:
+// a player dropped in the middle of a loop over the players must not make
+// the rest of that loop send an older status after a newer one.
+func (m *Match) settle() {
+	for m.statusDirty {
+		m.statusDirty = false
+		if m.host() == nil && m.phase == PhaseRunning {
+			m.paused = true
+		}
+		m.broadcastStatus() // may drop a slow client and mark the status dirty again
 	}
 }
 
@@ -470,24 +527,30 @@ func (m *Match) join(c *Client, faction, token string) {
 		m.reject(c, ErrUnknownFaction, fmt.Sprintf("unknown faction %q", faction), true)
 		return
 	}
+	var order uint64
 	if old := m.players[f]; old != nil {
 		if token == "" || token != old.token {
 			m.reject(c, ErrFactionTaken, fmt.Sprintf("faction %q is taken", faction), true)
 			return
 		}
-		// Same player reconnecting over a connection the server still thinks is alive.
+		// Same player reconnecting over a connection the server still thinks is
+		// alive. The player keeps its place in the join order, and so the host role.
 		m.drop(old)
+		order = old.order
+	}
+	if order == 0 {
+		m.orders++
+		order = m.orders
 	}
 	var raw [16]byte
 	rand.Read(raw[:])
-	m.orders++
-	c.faction, c.order, c.token = f, m.orders, hex.EncodeToString(raw[:])
+	c.faction, c.order, c.token = f, order, hex.EncodeToString(raw[:])
 	m.players[f] = c
 	m.log.Info("player joined", "name", c.Name, "faction", faction)
 	c.last = view.Build(m.cfg.World, m.state, f)
 	m.send(c, Welcome{Faction: f, Token: c.token, Status: m.status()})
 	m.send(c, c.last)
-	m.broadcastStatus()
+	m.statusDirty = true
 }
 
 func (m *Match) leave(c *Client) {
@@ -496,15 +559,6 @@ func (m *Match) leave(c *Client) {
 	}
 	m.drop(c)
 	m.log.Info("player left", "name", c.Name)
-	m.afterLeave()
-}
-
-func (m *Match) afterLeave() {
-	empty := m.host() == nil
-	if empty && m.phase == PhaseRunning {
-		m.paused = true
-	}
-	m.broadcastStatus()
 }
 
 func (m *Match) joined(c *Client) bool {
@@ -536,7 +590,7 @@ func (m *Match) start(c *Client) {
 	m.phase = PhaseRunning
 	m.paused = false
 	m.log.Info("match started")
-	m.broadcastStatus()
+	m.statusDirty = true
 }
 
 func (m *Match) setPause(c *Client, paused bool) {
@@ -544,7 +598,7 @@ func (m *Match) setPause(c *Client, paused bool) {
 		return
 	}
 	m.paused = paused
-	m.broadcastStatus()
+	m.statusDirty = true
 }
 
 func (m *Match) setSpeed(c *Client, speed uint32) {
@@ -558,7 +612,7 @@ func (m *Match) setSpeed(c *Client, speed uint32) {
 	if m.speed != speed {
 		m.speed = speed
 		m.next = time.Now().Add(m.interval())
-		m.broadcastStatus()
+		m.statusDirty = true
 	}
 }
 

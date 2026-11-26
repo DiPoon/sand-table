@@ -21,7 +21,7 @@ S → C   Delta{tick = T+1, ...}, Delta{tick = T+2, ...}, ...     틱마다 1개
 진영 배정:
 
 - 진영 슬롯에 살아 있는 연결이 없으면 배정하고 새 `session_token`을 발급한다.
-- 살아 있는 연결이 있으면 `session_token`이 일치할 때만 교체한다 (기존 연결은 끊는다). 아니면 `FACTION_TAKEN`.
+- 살아 있는 연결이 있으면 `session_token`이 일치할 때만 교체한다 (기존 연결은 끊는다). 아니면 `FACTION_TAKEN`. 교체한 연결은 기존 연결의 접속 순서를 이어받으므로 호스트는 그대로 호스트다.
 - 계정·인증은 없다. 토큰은 서버 메모리에만 있어서 서버를 재시작하면 모든 슬롯이 다시 빈다.
 
 재접속은 새 접속과 같다. 항상 `Snapshot`부터 다시 받는다.
@@ -98,7 +98,9 @@ S → C   Delta{tick = T+1, ...}, Delta{tick = T+2, ...}, ...     틱마다 1개
 ## 7. 오류와 연결 관리
 
 - `Error.code`: `BAD_MESSAGE`, `UNSUPPORTED_VERSION`, `UNKNOWN_MATCH`, `UNKNOWN_FACTION`, `FACTION_TAKEN`, `NOT_JOINED`, `NOT_HOST`, `INVALID_SPEED`, `SLOW_CONSUMER`, `SERVER_SHUTDOWN`.
-- 세션마다 상한이 있는 송신 큐를 둔다. 느린 클라이언트 때문에 틱 루프가 멈추지 않는다. 큐가 넘치면 `SLOW_CONSUMER`로 끊고, 클라이언트는 재접속해 새 스냅샷을 받는다.
+- 세션마다 상한이 있는 송신 큐를 둔다. 느린 클라이언트 때문에 틱 루프가 멈추지 않는다. 큐가 넘치면 `SLOW_CONSUMER`로 끊고 (큐에 남은 메시지를 다 보낸 뒤 이 오류를 보낸다), 클라이언트는 재접속해 새 스냅샷을 받는다.
+- `Hello` 이후에도 해석할 수 없는 메시지(디코딩 실패, 텍스트 프레임, 빈 `oneof`)를 받으면 `BAD_MESSAGE`(fatal)를 보내고 끊는다.
+- `MatchStatus`는 이벤트(메시지 하나 또는 틱 하나)를 다 처리한 뒤에 한 번 보낸다. 그 사이에 느린 클라이언트가 끊겨도 남은 참가자는 최종 상태를 마지막으로 받는다.
 - `Delta.tick`은 항상 직전 값 + 1이다. 건너뛰었다면 클라이언트는 재접속한다.
 - 일시정지 중에는 `Delta`가 오지 않는다. 연결 생존 확인은 WebSocket ping/pong으로 한다.
 

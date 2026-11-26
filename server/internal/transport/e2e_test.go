@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coder/websocket"
+	"google.golang.org/protobuf/proto"
+
 	pb "sandtable/server/internal/pb/sandtable/v1"
 
 	"sandtable/server/internal/gamedata"
@@ -306,5 +309,64 @@ func TestWebClient(t *testing.T) {
 	defer srv2.Close()
 	if resp, err := http.Get(srv2.URL + "/"); err != nil || resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("GET / without a web directory: %v %v", resp.StatusCode, err)
+	}
+}
+
+func TestBadMessageAfterHello(t *testing.T) {
+	world, err := gamedata.Load("../../../data", "sample")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := match.Open(match.Config{ID: "m", World: world, Seed: 1, HashInterval: 24, SnapshotInterval: 24,
+		Speeds: []time.Duration{time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	runCtx, stop := context.WithCancel(context.Background())
+	runDone := make(chan error, 1)
+	go func() { runDone <- m.Run(runCtx) }()
+	defer func() { stop(); <-runDone }()
+	srv := httptest.NewServer((&transport.Server{Matches: map[string]transport.Hosted{"m": {Match: m, World: world}}}).Handler())
+	defer srv.Close()
+
+	ws, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.CloseNow()
+	ws.SetReadLimit(64 << 20)
+	hello, _ := proto.Marshal(&pb.ClientMessage{Msg: &pb.ClientMessage_Hello{Hello: &pb.Hello{
+		ProtocolVersion: transport.ProtocolVersion, MatchId: "m", Faction: "azure", PlayerName: "x"}}})
+	if err := ws.Write(ctx, websocket.MessageBinary, hello); err != nil {
+		t.Fatal(err)
+	}
+	// After joining, a text frame is not a ClientMessage.
+	if err := ws.Write(ctx, websocket.MessageText, []byte("hello?")); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		_, data, err := ws.Read(ctx)
+		if err != nil {
+			t.Fatalf("connection closed without BAD_MESSAGE: %v", err)
+		}
+		msg := &pb.ServerMessage{}
+		if err := proto.Unmarshal(data, msg); err != nil {
+			t.Fatal(err)
+		}
+		if e := msg.GetError(); e != nil {
+			if e.Code != pb.ErrorCode_ERROR_CODE_BAD_MESSAGE || !e.Fatal {
+				t.Fatalf("got error %s fatal=%v", e.Code, e.Fatal)
+			}
+			break
+		}
+	}
+	if _, _, err := ws.Read(ctx); err == nil {
+		t.Fatal("the connection stayed open after BAD_MESSAGE")
+	}
+	// The faction is free again.
+	if info := m.Info(); info.Factions[0].Taken {
+		t.Fatal("azure is still taken")
 	}
 }

@@ -187,6 +187,11 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 			case msg, open := <-c.Out:
 				if !open {
 					if !broken {
+						// A client dropped for being too slow learns why only now:
+						// its queue had no room left for the error.
+						if e, ok := c.DropError(); ok {
+							writeMsg(ctx, conn, errorPB(e.Code, e.Message, e.Fatal))
+						}
 						conn.Close(websocket.StatusNormalClosure, "")
 					}
 					return
@@ -236,6 +241,10 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 	for {
 		m, err := readMsg(ctx, conn)
 		if err != nil {
+			if err == errBadMessage {
+				// The writer sends the error, then closes the connection.
+				h.Match.Kick(c, match.ErrBadMessage, "malformed message")
+			}
 			break
 		}
 		switch x := m.Msg.(type) {
