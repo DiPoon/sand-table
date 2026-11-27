@@ -1,5 +1,7 @@
 github.com/coder/websocket v1.8.15 h1:6B2JPeOGlpff2Uz6vOEH1Vzpi0iUz20A+lPVhPHtNUA=
 github.com/coder/websocket v1.8.15/go.mod h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=
+github.com/fogleman/delaunay v0.0.0-20180910191513-63f09b4c883d h1:TEEc0gLspsm9q0dWZZYiH0blV1MhPQnshLqSoANbxMk=
+github.com/fogleman/delaunay v0.0.0-20180910191513-63f09b4c883d/go.mod h1:Twj6uBC/dSqh5vCcgzy/jO/4QWu9lqPTt1v3WEz68z8=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
 go.yaml.in/yaml/v3 v3.0.6 h1:zcDfvjXEqTQmpjniUBLc91xYJMB2c4QOFxEF/LCEckM=
