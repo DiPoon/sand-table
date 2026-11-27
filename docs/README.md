@@ -58,6 +58,7 @@ SANDTABLE_WS=ws://127.0.0.1:8080/ws npm test   # 실행 중인 서버(새 방)�
 | [rules.md](rules.md) | 게임 규칙 — 이동, 전투, 후퇴, 점령, 보급, 시야 |
 | [persistence.md](persistence.md) | 영속성 — 명령 로그, 해시, 스냅샷, 복구, 리플레이 |
 | [client-plan.md](client-plan.md) | 2단계 — 웹 뷰어 클라이언트 (구현 완료, 계획과 달라진 점은 문서 끝) |
+| [land-war-plan.md](land-war-plan.md) | 3단계 계획 — 한 판이 성립하는 지상전 (진행 중) |
 
 ## 확정된 결정
 

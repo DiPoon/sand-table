@@ -62,8 +62,20 @@ type mapFile struct {
 		Terrain string  `yaml:"terrain"`
 		Pos     []int32 `yaml:"pos"`
 		Hub     bool    `yaml:"hub"`
+		State   string  `yaml:"state"`
+		VP      int32   `yaml:"vp"`
 	} `yaml:"provinces"`
-	Edges [][]any `yaml:"edges"`
+	Edges  [][]any `yaml:"edges"` // [a, b, distance in km]
+	States []struct {
+		ID             string `yaml:"id"`
+		Name           string `yaml:"name"`
+		Capital        string `yaml:"capital"`
+		Manpower       int64  `yaml:"manpower"`
+		Factories      int32  `yaml:"factories"`
+		Infrastructure int32  `yaml:"infrastructure"`
+	} `yaml:"states"`
+	Rivers   [][]any `yaml:"rivers"`   // [a, b, small | large]: a river along the border of a and b
+	Railways [][]any `yaml:"railways"` // [a, b, level]: a railway along the edge a-b
 }
 
 type scenarioFile struct {
@@ -71,7 +83,9 @@ type scenarioFile struct {
 	Factions []struct {
 		ID        string   `yaml:"id"`
 		Name      string   `yaml:"name"`
+		Capital   string   `yaml:"capital"`
 		Provinces []string `yaml:"provinces"`
+		States    []string `yaml:"states"` // every province of these states
 	} `yaml:"factions"`
 	Divisions []struct {
 		Faction string `yaml:"faction"`
@@ -218,6 +232,16 @@ func Load(dir, scenario string) (*sim.World, error) {
 			OrgRecovery: u.OrgRecovery, Width: u.Width, ReinforceChance: u.ReinforceChance}
 	}
 
+	// States (regions in sim), before provinces refer to them.
+	keys = make([]string, len(mf.States))
+	for i, st := range mf.States {
+		keys[i] = st.ID
+	}
+	stateIdx, err := index("state", keys)
+	if err != nil {
+		return nil, err
+	}
+
 	// Provinces and edges.
 	keys = make([]string, len(mf.Provinces))
 	for i, p := range mf.Provinces {
@@ -242,8 +266,25 @@ func Load(dir, scenario string) (*sim.World, error) {
 		if p.Hub && !w.Terrains[t].Passable {
 			return nil, fmt.Errorf("province %q: a hub must be passable", p.ID)
 		}
+		region := sim.NoRegion
+		if p.State != "" {
+			si, ok := stateIdx[p.State]
+			if !ok {
+				return nil, fmt.Errorf("province %q: unknown state %q", p.ID, p.State)
+			}
+			if !w.Terrains[t].Passable {
+				return nil, fmt.Errorf("province %q: an impassable province cannot belong to a state", p.ID)
+			}
+			region = sim.RegionID(si + 1)
+		}
+		if err := inRange("vp", int64(p.VP), 0, 1_000_000); err != nil {
+			return nil, fmt.Errorf("province %q: %w", p.ID, err)
+		}
+		if p.VP > 0 && !w.Terrains[t].Passable {
+			return nil, fmt.Errorf("province %q: victory points need a passable province", p.ID)
+		}
 		w.Provinces[provIdx[p.ID]] = sim.Province{Key: p.ID, Name: p.Name, Terrain: sim.TerrainID(t),
-			X: p.Pos[0], Y: p.Pos[1], Hub: p.Hub}
+			X: p.Pos[0], Y: p.Pos[1], Hub: p.Hub, Region: region, VP: p.VP}
 	}
 	for n, e := range mf.Edges {
 		if len(e) != 3 {
@@ -275,6 +316,12 @@ func Load(dir, scenario string) (*sim.World, error) {
 		adj := w.Provinces[i].Adj
 		sort.Slice(adj, func(x, y int) bool { return adj[x].To < adj[y].To })
 	}
+	if err := loadEdgeTags(w, provIdx, mf.Rivers, mf.Railways); err != nil {
+		return nil, err
+	}
+	if err := loadRegions(w, provIdx, mf); err != nil {
+		return nil, err
+	}
 
 	// Factions, initial control, divisions.
 	keys = make([]string, len(sf.Factions))
@@ -290,18 +337,43 @@ func Load(dir, scenario string) (*sim.World, error) {
 	}
 	w.Factions = make([]sim.Faction, len(keys)+1)
 	w.InitControl = make([]sim.FactionID, len(w.Provinces))
+	w.Factions[0].Capital = sim.NoProvince
 	for _, f := range sf.Factions {
 		id := sim.FactionID(facIdx[f.ID] + 1)
-		w.Factions[id] = sim.Faction{Key: f.ID, Name: f.Name}
-		for _, pk := range f.Provinces {
+		w.Factions[id] = sim.Faction{Key: f.ID, Name: f.Name, Capital: sim.NoProvince}
+		assign := func(pk string) error {
 			p, ok := provIdx[pk]
 			if !ok {
-				return nil, fmt.Errorf("faction %q: unknown province %q", f.ID, pk)
+				return fmt.Errorf("faction %q: unknown province %q", f.ID, pk)
 			}
 			if w.InitControl[p] != sim.NoFaction {
-				return nil, fmt.Errorf("province %q is assigned to two factions", pk)
+				return fmt.Errorf("province %q is assigned to two factions", pk)
 			}
 			w.InitControl[p] = id
+			return nil
+		}
+		for _, pk := range f.Provinces {
+			if err := assign(pk); err != nil {
+				return nil, err
+			}
+		}
+		for _, sk := range f.States {
+			si, ok := stateIdx[sk]
+			if !ok {
+				return nil, fmt.Errorf("faction %q: unknown state %q", f.ID, sk)
+			}
+			for _, p := range w.Regions[si+1].Provinces {
+				if err := assign(w.Provinces[p].Key); err != nil {
+					return nil, err
+				}
+			}
+		}
+		if f.Capital != "" {
+			p, ok := provIdx[f.Capital]
+			if !ok || w.InitControl[p] != id {
+				return nil, fmt.Errorf("faction %q: capital %q is not a province the faction controls", f.ID, f.Capital)
+			}
+			w.Factions[id].Capital = sim.ProvinceID(p)
 		}
 	}
 	for n, d := range sf.Divisions {
@@ -322,4 +394,140 @@ func Load(dir, scenario string) (*sim.World, error) {
 			Faction: fid, Type: sim.UnitTypeID(t), Name: d.Name, At: sim.ProvinceID(p)})
 	}
 	return w, nil
+}
+
+// edgeOf returns both directions of the edge a-b, or nils if they are not adjacent.
+func edgeOf(w *sim.World, a, b int) (*sim.Edge, *sim.Edge) {
+	var ab, ba *sim.Edge
+	for i := range w.Provinces[a].Adj {
+		if int(w.Provinces[a].Adj[i].To) == b {
+			ab = &w.Provinces[a].Adj[i]
+		}
+	}
+	for i := range w.Provinces[b].Adj {
+		if int(w.Provinces[b].Adj[i].To) == a {
+			ba = &w.Provinces[b].Adj[i]
+		}
+	}
+	return ab, ba
+}
+
+// loadEdgeTags puts rivers and railways on existing edges.
+func loadEdgeTags(w *sim.World, provIdx map[string]int, rivers, railways [][]any) error {
+	edge := func(what string, n int, e []any) (*sim.Edge, *sim.Edge, error) {
+		if len(e) != 3 {
+			return nil, nil, fmt.Errorf("%s %d: want [a, b, value]", what, n)
+		}
+		ak, _ := e[0].(string)
+		bk, _ := e[1].(string)
+		a, oka := provIdx[ak]
+		b, okb := provIdx[bk]
+		if !oka || !okb {
+			return nil, nil, fmt.Errorf("%s %d: unknown province in %v", what, n, e)
+		}
+		ab, ba := edgeOf(w, a, b)
+		if ab == nil {
+			return nil, nil, fmt.Errorf("%s %d: %s and %s are not adjacent", what, n, ak, bk)
+		}
+		return ab, ba, nil
+	}
+	for n, e := range rivers {
+		ab, ba, err := edge("river", n, e)
+		if err != nil {
+			return err
+		}
+		kind := sim.RiverNone
+		switch e[2] {
+		case "small":
+			kind = sim.RiverSmall
+		case "large":
+			kind = sim.RiverLarge
+		default:
+			return fmt.Errorf("river %d: kind must be small or large, not %v", n, e[2])
+		}
+		if ab.River != sim.RiverNone {
+			return fmt.Errorf("river %d: duplicate river on %v", n, e[:2])
+		}
+		ab.River, ba.River = kind, kind
+	}
+	for n, e := range railways {
+		ab, ba, err := edge("railway", n, e)
+		if err != nil {
+			return err
+		}
+		level, ok := e[2].(int)
+		if !ok || level < 1 || level > 10 {
+			return fmt.Errorf("railway %d: level must be 1..10, not %v", n, e[2])
+		}
+		if ab.Rail != 0 {
+			return fmt.Errorf("railway %d: duplicate railway on %v", n, e[:2])
+		}
+		if !w.Terrains[w.Provinces[ab.To].Terrain].Passable || !w.Terrains[w.Provinces[ba.To].Terrain].Passable {
+			return fmt.Errorf("railway %d: both ends must be passable", n)
+		}
+		ab.Rail, ba.Rail = uint8(level), uint8(level)
+	}
+	return nil
+}
+
+// loadRegions fills World.Regions from the states of the map: index 0 is
+// "none", state i in key order is region i+1.
+func loadRegions(w *sim.World, provIdx map[string]int, mf mapFile) error {
+	keys := make([]string, len(mf.States))
+	for i, st := range mf.States {
+		keys[i] = st.ID
+	}
+	idx, err := index("state", keys)
+	if err != nil {
+		return err
+	}
+	w.Regions = make([]sim.Region, len(keys)+1)
+	w.Regions[0].Capital = sim.NoProvince
+	for _, st := range mf.States {
+		id := idx[st.ID] + 1
+		c, ok := provIdx[st.Capital]
+		if !ok {
+			return fmt.Errorf("state %q: unknown capital %q", st.ID, st.Capital)
+		}
+		if err := errors.Join(
+			inRange("manpower", st.Manpower, 0, 1_000_000_000_000),
+			inRange("factories", int64(st.Factories), 0, 100_000),
+			inRange("infrastructure", int64(st.Infrastructure), 0, 100),
+		); err != nil {
+			return fmt.Errorf("state %q: %w", st.ID, err)
+		}
+		w.Regions[id] = sim.Region{Key: st.ID, Name: st.Name, Capital: sim.ProvinceID(c), Manpower: st.Manpower,
+			Factories: st.Factories, Infrastructure: st.Infrastructure}
+	}
+	for p := range w.Provinces {
+		if r := w.Provinces[p].Region; r != sim.NoRegion {
+			w.Regions[r].Provinces = append(w.Regions[r].Provinces, sim.ProvinceID(p))
+		}
+	}
+	for r := 1; r < len(w.Regions); r++ {
+		reg := &w.Regions[r]
+		if len(reg.Provinces) == 0 {
+			return fmt.Errorf("state %q has no provinces", reg.Key)
+		}
+		if w.Provinces[reg.Capital].Region != sim.RegionID(r) {
+			return fmt.Errorf("state %q: capital %q lies in another state", reg.Key, w.Provinces[reg.Capital].Key)
+		}
+		// A state is one piece: every province is reachable from the capital inside the state.
+		seen := map[sim.ProvinceID]bool{reg.Capital: true}
+		queue := []sim.ProvinceID{reg.Capital}
+		for len(queue) > 0 {
+			p := queue[0]
+			queue = queue[1:]
+			for _, e := range w.Provinces[p].Adj {
+				if !seen[e.To] && w.Provinces[e.To].Region == sim.RegionID(r) {
+					seen[e.To] = true
+					queue = append(queue, e.To)
+				}
+			}
+		}
+		if len(seen) != len(reg.Provinces) {
+			return fmt.Errorf("state %q is not connected", reg.Key)
+		}
+	}
+	return nil
 }

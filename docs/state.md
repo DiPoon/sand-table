@@ -26,10 +26,11 @@
 
 ```
 data/
-├── rules.yaml             # 전투·보급·시야 상수, 지형 타입
-├── units.yaml             # 유닛 타입
-├── maps/sample.yaml       # 프로빈스 + 간선
-└── scenarios/sample.yaml  # 맵 참조, 진영, 초기 통제, 초기 사단
+├── rules.yaml                # 전투·보급·시야 상수, 지형 타입
+├── units.yaml                # 유닛 타입
+├── maps/sample.yaml          # 프로빈스 + 간선 (손으로 쓴 16칸)
+├── maps/generated.yaml       # sandtable-mapgen이 만든 맵 (주, 강, 철도, 승점 포함)
+└── scenarios/*.yaml          # 맵 참조, 진영(수도, 영토), 초기 사단
 ```
 
 ```yaml
@@ -38,6 +39,16 @@ provinces:
   - {id: p01, name: Ashford, terrain: plains, pos: [120, 80], hub: true}
 edges:
   - [p01, p02, 40]          # a, b, 거리(km). 양방향
+
+# maps/generated.yaml: 위에 더해 (모두 선택)
+provinces:
+  - {id: p0005, name: "Couzirria", terrain: urban, pos: [1094, 787], state: s19, vp: 4, hub: true}
+states:                     # 주. 시뮬레이션 코드에서는 Region (State는 동적 상태 이름이라)
+  - {id: s19, name: "Ruvenmar", capital: p0005, manpower: 520000, factories: 3, infrastructure: 4}
+rivers:
+  - [p0001, p0002, small]   # a와 b의 경계를 따라 흐르는 강: small | large
+railways:
+  - [p0001, p0002, 1]       # 간선 a-b를 따라 놓인 철도와 등급
 
 # units.yaml
 - id: infantry
@@ -54,12 +65,15 @@ edges:
 map: sample
 factions:
   - {id: azure, name: Azure League, provinces: [p01, p02, p03]}
+  # 생성 맵: 수도와 주 단위 영토
+  - {id: aldkras, name: Aldkras League, capital: p0961, states: [s02, s04]}
 divisions:
   - {faction: azure, type: infantry, name: 1st Infantry, at: p01}
 ```
 
 - 인접은 `edges`에 한 번만 적는다. 프로빈스마다 인접 목록을 따로 쓰면 한쪽만 적는 비대칭 실수가 생긴다.
-- 로더(`internal/gamedata`)가 검증한다: 중복 키, 없는 참조, 중복/자기 간선, 범위 밖 수치, 모르는 필드는 모두 오류.
+- 로더(`internal/gamedata`)가 검증한다: 중복 키, 없는 참조, 중복/자기 간선, 범위 밖 수치, 모르는 필드는 모두 오류. 주는 비어 있지 않고 한 덩어리여야 하며 주도가 그 주 안에 있어야 한다. 강과 철도는 있는 간선 위에만 놓인다. 수도는 그 진영이 통제하는 프로빈스여야 한다.
+- 주, 강, 철도, 승점, 수도는 3단계 M1에서 데이터에 들어왔다. 시뮬레이션은 아직 쓰지 않는다 (보급 허브만 기존 보급 규칙이 쓴다). [land-war-plan.md](land-war-plan.md).
 - **데이터 해시** = 로드와 검증을 마친 `World`의 정규 인코딩에 대한 SHA-256. 파일 바이트가 아니라 내용 기준이라 주석이나 공백을 고쳐도 변하지 않는다. 로그와 스냅샷 헤더에 기록한다.
 
 ## 4. 동적 상태 (`State`)

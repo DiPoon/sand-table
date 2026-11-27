@@ -237,16 +237,35 @@ func HashWorld(w *World) Hash {
 		e.I32(p.X)
 		e.I32(p.Y)
 		e.Bool(p.Hub)
+		e.U16(uint16(p.Region))
+		e.I32(p.VP)
 		e.U32(uint32(len(p.Adj)))
 		for _, a := range p.Adj {
 			e.U32(uint32(a.To))
 			e.I64(a.Distance)
+			e.U8(a.River)
+			e.U8(a.Rail)
 		}
+	}
+	e.U32(uint32(len(w.Regions)))
+	for i := range w.Regions {
+		s := &w.Regions[i]
+		e.Str(s.Key)
+		e.Str(s.Name)
+		e.I32(int32(s.Capital))
+		e.U32(uint32(len(s.Provinces)))
+		for _, p := range s.Provinces {
+			e.U32(uint32(p))
+		}
+		e.I64(s.Manpower)
+		e.I32(s.Factories)
+		e.I32(s.Infrastructure)
 	}
 	e.U32(uint32(len(w.Factions)))
 	for _, f := range w.Factions {
 		e.Str(f.Key)
 		e.Str(f.Name)
+		e.I32(int32(f.Capital))
 	}
 	e.U32(uint32(len(w.InitControl)))
 	for _, c := range w.InitControl {

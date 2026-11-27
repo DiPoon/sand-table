@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file sandtable/v1/sandtable.proto.
  */
 export const file_sandtable_v1_sandtable: GenFile = /*@__PURE__*/
-  fileDesc("ChxzYW5kdGFibGUvdjEvc2FuZHRhYmxlLnByb3RvEgxzYW5kdGFibGUudjEi8QEKDUNsaWVudE1lc3NhZ2USJAoFaGVsbG8YASABKAsyEy5zYW5kdGFibGUudjEuSGVsbG9IABIoCgdjb21tYW5kGAIgASgLMhUuc2FuZHRhYmxlLnYxLkNvbW1hbmRIABIvCgtzdGFydF9tYXRjaBgDIAEoCzIYLnNhbmR0YWJsZS52MS5TdGFydE1hdGNoSAASKwoJc2V0X3BhdXNlGAQgASgLMhYuc2FuZHRhYmxlLnYxLlNldFBhdXNlSAASKwoJc2V0X3NwZWVkGAUgASgLMhYuc2FuZHRhYmxlLnYxLlNldFNwZWVkSABCBQoDbXNnInAKBUhlbGxvEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SEAoIbWF0Y2hfaWQYAiABKAkSDwoHZmFjdGlvbhgDIAEoCRITCgtwbGF5ZXJfbmFtZRgEIAEoCRIVCg1zZXNzaW9uX3Rva2VuGAUgASgJIlkKB0NvbW1hbmQSEgoKY2xpZW50X3NlcRgBIAEoDRIzCg1tb3ZlX2RpdmlzaW9uGAogASgLMhouc2FuZHRhYmxlLnYxLk1vdmVEaXZpc2lvbkgAQgUKA2NtZCI4CgxNb3ZlRGl2aXNpb24SEwoLZGl2aXNpb25faWQYASABKA0SEwoLZGVzdGluYXRpb24YAiABKA0iDAoKU3RhcnRNYXRjaCIaCghTZXRQYXVzZRIOCgZwYXVzZWQYASABKAgiGQoIU2V0U3BlZWQSDQoFc3BlZWQYASABKA0iogIKDVNlcnZlck1lc3NhZ2USKAoHd2VsY29tZRgBIAEoCzIVLnNhbmR0YWJsZS52MS5XZWxjb21lSAASKgoIc25hcHNob3QYAiABKAsyFi5zYW5kdGFibGUudjEuU25hcHNob3RIABIkCgVkZWx0YRgDIAEoCzITLnNhbmR0YWJsZS52MS5EZWx0YUgAEjUKDmNvbW1hbmRfcmVzdWx0GAQgASgLMhsuc2FuZHRhYmxlLnYxLkNvbW1hbmRSZXN1bHRIABIxCgxtYXRjaF9zdGF0dXMYBSABKAsyGS5zYW5kdGFibGUudjEuTWF0Y2hTdGF0dXNIABIkCgVlcnJvchgGIAEoCzITLnNhbmR0YWJsZS52MS5FcnJvckgAQgUKA21zZyKJAQoHV2VsY29tZRISCgpmYWN0aW9uX2lkGAEgASgNEhUKDXNlc3Npb25fdG9rZW4YAiABKAkSKAoGc3RhdGljGAMgASgLMhguc2FuZHRhYmxlLnYxLlN0YXRpY0RhdGESKQoGc3RhdHVzGAQgASgLMhkuc2FuZHRhYmxlLnYxLk1hdGNoU3RhdHVzIusBCgpTdGF0aWNEYXRhEhEKCWRhdGFfaGFzaBgBIAEoDBInCgh0ZXJyYWlucxgCIAMoCzIVLnNhbmR0YWJsZS52MS5UZXJyYWluEioKCnVuaXRfdHlwZXMYAyADKAsyFi5zYW5kdGFibGUudjEuVW5pdFR5cGUSKQoJcHJvdmluY2VzGAQgAygLMhYuc2FuZHRhYmxlLnYxLlByb3ZpbmNlEiEKBWVkZ2VzGAUgAygLMhIuc2FuZHRhYmxlLnYxLkVkZ2USJwoIZmFjdGlvbnMYBiADKAsyFS5zYW5kdGFibGUudjEuRmFjdGlvbiJ2CgdUZXJyYWluEgsKA2tleRgBIAEoCRIMCgRuYW1lGAIgASgJEhEKCW1vdmVfY29zdBgDIAEoAxIVCg1kZWZlbnNlX2JvbnVzGAQgASgDEhQKDGNvbWJhdF93aWR0aBgFIAEoAxIQCghwYXNzYWJsZRgGIAEoCCK7AQoIVW5pdFR5cGUSCwoDa2V5GAEgASgJEgwKBG5hbWUYAiABKAkSFAoMbWF4X3N0cmVuZ3RoGAMgASgFEg8KB21heF9vcmcYBCABKAUSDgoGYXR0YWNrGAUgASgDEg8KB2RlZmVuc2UYBiABKAMSDQoFc3BlZWQYByABKAMSFAoMb3JnX3JlY292ZXJ5GAggASgDEg0KBXdpZHRoGAkgASgDEhgKEHJlaW5mb3JjZV9jaGFuY2UYCiABKAMiWQoIUHJvdmluY2USCwoDa2V5GAEgASgJEgwKBG5hbWUYAiABKAkSDwoHdGVycmFpbhgDIAEoDRIJCgF4GAQgASgFEgkKAXkYBSABKAUSCwoDaHViGAYgASgIIi4KBEVkZ2USCQoBYRgBIAEoDRIJCgFiGAIgASgNEhAKCGRpc3RhbmNlGAMgASgDIiQKB0ZhY3Rpb24SCwoDa2V5GAEgASgJEgwKBG5hbWUYAiABKAkiUgoMUHJvdmluY2VWaWV3EgoKAmlkGAEgASgNEhIKCmNvbnRyb2xsZXIYAiABKA0SDwoHdmlzaWJsZRgDIAEoCBIRCglpbl9iYXR0bGUYBCABKAgiyQEKDERpdmlzaW9uVmlldxIKCgJpZBgBIAEoDRIPCgdmYWN0aW9uGAIgASgNEgwKBHR5cGUYAyABKA0SDAoEbmFtZRgEIAEoCRIQCghwcm92aW5jZRgFIAEoDRIQCghzdHJlbmd0aBgGIAEoBRILCgNvcmcYByABKAUSEgoKcmV0cmVhdGluZxgIIAEoCBILCgNvd24YCSABKAgSDAoEcGF0aBgKIAMoDRIQCghwcm9ncmVzcxgLIAEoAxIOCgZzdXBwbHkYDCABKAUidgoIU25hcHNob3QSDAoEdGljaxgBIAEoBBItCglwcm92aW5jZXMYAiADKAsyGi5zYW5kdGFibGUudjEuUHJvdmluY2VWaWV3Ei0KCWRpdmlzaW9ucxgDIAMoCzIaLnNhbmR0YWJsZS52MS5EaXZpc2lvblZpZXciSQoPUmVtb3ZlZERpdmlzaW9uEgoKAmlkGAEgASgNEioKBnJlYXNvbhgCIAEoDjIaLnNhbmR0YWJsZS52MS5SZW1vdmVSZWFzb24iowEKBURlbHRhEgwKBHRpY2sYASABKAQSLQoJcHJvdmluY2VzGAIgAygLMhouc2FuZHRhYmxlLnYxLlByb3ZpbmNlVmlldxItCglkaXZpc2lvbnMYAyADKAsyGi5zYW5kdGFibGUudjEuRGl2aXNpb25WaWV3Ei4KB3JlbW92ZWQYBCADKAsyHS5zYW5kdGFibGUudjEuUmVtb3ZlZERpdmlzaW9uIpABCg1Db21tYW5kUmVzdWx0EhIKCmNsaWVudF9zZXEYASABKA0SKwoGc3RhdHVzGAIgASgOMhsuc2FuZHRhYmxlLnYxLkNvbW1hbmRTdGF0dXMSKgoGcmVhc29uGAMgASgOMhouc2FuZHRhYmxlLnYxLlJlamVjdFJlYXNvbhISCgphcHBseV90aWNrGAQgASgEIioKBlBsYXllchISCgpmYWN0aW9uX2lkGAEgASgNEgwKBG5hbWUYAiABKAkioAEKC01hdGNoU3RhdHVzEicKBXBoYXNlGAEgASgOMhguc2FuZHRhYmxlLnYxLk1hdGNoUGhhc2USDgoGcGF1c2VkGAIgASgIEg0KBXNwZWVkGAMgASgNEgwKBHRpY2sYBCABKAQSFAoMaG9zdF9mYWN0aW9uGAUgASgNEiUKB3BsYXllcnMYBiADKAsyFC5zYW5kdGFibGUudjEuUGxheWVyIk4KBUVycm9yEiUKBGNvZGUYASABKA4yFy5zYW5kdGFibGUudjEuRXJyb3JDb2RlEg8KB21lc3NhZ2UYAiABKAkSDQoFZmF0YWwYAyABKAgqagoMUmVtb3ZlUmVhc29uEh0KGVJFTU9WRV9SRUFTT05fVU5TUEVDSUZJRUQQABIbChdSRU1PVkVfUkVBU09OX0RFU1RST1lFRBABEh4KGlJFTU9WRV9SRUFTT05fT1VUX09GX1NJR0hUEAIqaQoNQ29tbWFuZFN0YXR1cxIeChpDT01NQU5EX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0NPTU1BTkRfU1RBVFVTX0FDQ0VQVEVEEAESGwoXQ09NTUFORF9TVEFUVVNfUkVKRUNURUQQAiqYAgoMUmVqZWN0UmVhc29uEh0KGVJFSkVDVF9SRUFTT05fVU5TUEVDSUZJRUQQABIbChdSRUpFQ1RfUkVBU09OX01BTEZPUk1FRBABEiMKH1JFSkVDVF9SRUFTT05fTk9UX1lPVVJfRElWSVNJT04QAhIlCiFSRUpFQ1RfUkVBU09OX0RJVklTSU9OX1JFVFJFQVRJTkcQAxIiCh5SRUpFQ1RfUkVBU09OX1VOS05PV05fUFJPVklOQ0UQBBIZChVSRUpFQ1RfUkVBU09OX05PX1BBVEgQBRIcChhSRUpFQ1RfUkVBU09OX1FVRVVFX0ZVTEwQBhIjCh9SRUpFQ1RfUkVBU09OX01BVENIX05PVF9TVEFSVEVEEAcqWQoKTWF0Y2hQaGFzZRIbChdNQVRDSF9QSEFTRV9VTlNQRUNJRklFRBAAEhUKEU1BVENIX1BIQVNFX0xPQkJZEAESFwoTTUFUQ0hfUEhBU0VfUlVOTklORxACKtMCCglFcnJvckNvZGUSGgoWRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEhoKFkVSUk9SX0NPREVfQkFEX01FU1NBR0UQARIiCh5FUlJPUl9DT0RFX1VOU1VQUE9SVEVEX1ZFUlNJT04QAhIcChhFUlJPUl9DT0RFX1VOS05PV05fTUFUQ0gQAxIeChpFUlJPUl9DT0RFX1VOS05PV05fRkFDVElPThAEEhwKGEVSUk9SX0NPREVfRkFDVElPTl9UQUtFThAFEhkKFUVSUk9SX0NPREVfTk9UX0pPSU5FRBAGEhcKE0VSUk9SX0NPREVfTk9UX0hPU1QQBxIcChhFUlJPUl9DT0RFX0lOVkFMSURfU1BFRUQQCBIcChhFUlJPUl9DT0RFX1NMT1dfQ09OU1VNRVIQCRIeChpFUlJPUl9DT0RFX1NFUlZFUl9TSFVURE9XThAKQjdaNXNhbmR0YWJsZS9zZXJ2ZXIvaW50ZXJuYWwvcGIvc2FuZHRhYmxlL3YxO3NhbmR0YWJsZXYxYgZwcm90bzM");
+  fileDesc("ChxzYW5kdGFibGUvdjEvc2FuZHRhYmxlLnByb3RvEgxzYW5kdGFibGUudjEi8QEKDUNsaWVudE1lc3NhZ2USJAoFaGVsbG8YASABKAsyEy5zYW5kdGFibGUudjEuSGVsbG9IABIoCgdjb21tYW5kGAIgASgLMhUuc2FuZHRhYmxlLnYxLkNvbW1hbmRIABIvCgtzdGFydF9tYXRjaBgDIAEoCzIYLnNhbmR0YWJsZS52MS5TdGFydE1hdGNoSAASKwoJc2V0X3BhdXNlGAQgASgLMhYuc2FuZHRhYmxlLnYxLlNldFBhdXNlSAASKwoJc2V0X3NwZWVkGAUgASgLMhYuc2FuZHRhYmxlLnYxLlNldFNwZWVkSABCBQoDbXNnInAKBUhlbGxvEhgKEHByb3RvY29sX3ZlcnNpb24YASABKA0SEAoIbWF0Y2hfaWQYAiABKAkSDwoHZmFjdGlvbhgDIAEoCRITCgtwbGF5ZXJfbmFtZRgEIAEoCRIVCg1zZXNzaW9uX3Rva2VuGAUgASgJIlkKB0NvbW1hbmQSEgoKY2xpZW50X3NlcRgBIAEoDRIzCg1tb3ZlX2RpdmlzaW9uGAogASgLMhouc2FuZHRhYmxlLnYxLk1vdmVEaXZpc2lvbkgAQgUKA2NtZCI4CgxNb3ZlRGl2aXNpb24SEwoLZGl2aXNpb25faWQYASABKA0SEwoLZGVzdGluYXRpb24YAiABKA0iDAoKU3RhcnRNYXRjaCIaCghTZXRQYXVzZRIOCgZwYXVzZWQYASABKAgiGQoIU2V0U3BlZWQSDQoFc3BlZWQYASABKA0iogIKDVNlcnZlck1lc3NhZ2USKAoHd2VsY29tZRgBIAEoCzIVLnNhbmR0YWJsZS52MS5XZWxjb21lSAASKgoIc25hcHNob3QYAiABKAsyFi5zYW5kdGFibGUudjEuU25hcHNob3RIABIkCgVkZWx0YRgDIAEoCzITLnNhbmR0YWJsZS52MS5EZWx0YUgAEjUKDmNvbW1hbmRfcmVzdWx0GAQgASgLMhsuc2FuZHRhYmxlLnYxLkNvbW1hbmRSZXN1bHRIABIxCgxtYXRjaF9zdGF0dXMYBSABKAsyGS5zYW5kdGFibGUudjEuTWF0Y2hTdGF0dXNIABIkCgVlcnJvchgGIAEoCzITLnNhbmR0YWJsZS52MS5F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AiABKA4yGy5zYW5kdGFibGUudjEuQ29tbWFuZFN0YXR1cxIqCgZyZWFzb24YAyABKA4yGi5zYW5kdGFibGUudjEuUmVqZWN0UmVhc29uEhIKCmFwcGx5X3RpY2sYBCABKAQiKgoGUGxheWVyEhIKCmZhY3Rpb25faWQYASABKA0SDAoEbmFtZRgCIAEoCSKgAQoLTWF0Y2hTdGF0dXMSJwoFcGhhc2UYASABKA4yGC5zYW5kdGFibGUudjEuTWF0Y2hQaGFzZRIOCgZwYXVzZWQYAiABKAgSDQoFc3BlZWQYAyABKA0SDAoEdGljaxgEIAEoBBIUCgxob3N0X2ZhY3Rpb24YBSABKA0SJQoHcGxheWVycxgGIAMoCzIULnNhbmR0YWJsZS52MS5QbGF5ZXIiTgoFRXJyb3ISJQoEY29kZRgBIAEoDjIXLnNhbmR0YWJsZS52MS5FcnJvckNvZGUSDwoHbWVzc2FnZRgCIAEoCRINCgVmYXRhbBgDIAEoCCpqCgxSZW1vdmVSZWFzb24SHQoZUkVNT1ZFX1JFQVNPTl9VTlNQRUNJRklFRBAAEhsKF1JFTU9WRV9SRUFTT05fREVTVFJPWUVEEAESHgoaUkVNT1ZFX1JFQVNPTl9PVVRfT0ZfU0lHSFQQAippCg1Db21tYW5kU3RhdHVzEh4KGkNPTU1BTkRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGwoXQ09NTUFORF9TVEFUVVNfQUNDRVBURUQQARIbChdDT01NQU5EX1NUQVRVU19SRUpFQ1RFRBACKpgCCgxSZWplY3RSZWFzb24SHQoZUkVKRUNUX1JFQVNPTl9VTlNQRUNJRklFRBAAEhsKF1JFSkVDVF9SRUFTT05fTUFMRk9STUVEEAESIwofUkVKRUNUX1JFQVNPTl9OT1RfWU9VUl9ESVZJU0lPThACEiUKIVJFSkVDVF9SRUFTT05fRElWSVNJT05fUkVUUkVBVElORxADEiIKHlJFSkVDVF9SRUFTT05fVU5LTk9XTl9QUk9WSU5DRRAEEhkKFVJFSkVDVF9SRUFTT05fTk9fUEFUSBAFEhwKGFJFSkVDVF9SRUFTT05fUVVFVUVfRlVMTBAGEiMKH1JFSkVDVF9SRUFTT05fTUFUQ0hfTk9UX1NUQVJURUQQBypZCgpNYXRjaFBoYXNlEhsKF01BVENIX1BIQVNFX1VOU1BFQ0lGSUVEEAASFQoRTUFUQ0hfUEhBU0VfTE9CQlkQARIXChNNQVRDSF9QSEFTRV9SVU5OSU5HEAIq0wIKCUVycm9yQ29kZRIaChZFUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASGgoWRVJST1JfQ09ERV9CQURfTUVTU0FHRRABEiIKHkVSUk9SX0NPREVfVU5TVVBQT1JURURfVkVSU0lPThACEhwKGEVSUk9SX0NPREVfVU5LTk9XTl9NQVRDSBADEh4KGkVSUk9SX0NPREVfVU5LTk9XTl9GQUNUSU9OEAQSHAoYRVJST1JfQ09ERV9GQUNUSU9OX1RBS0VOEAUSGQoVRVJST1JfQ09ERV9OT1RfSk9JTkVEEAYSFwoTRVJST1JfQ09ERV9OT1RfSE9TVBAHEhwKGEVSUk9SX0NPREVfSU5WQUxJRF9TUEVFRBAIEhwKGEVSUk9SX0NPREVfU0xPV19DT05TVU1FUhAJEh4KGkVSUk9SX0NPREVfU0VSVkVSX1NIVVRET1dOEApCN1o1c2FuZHRhYmxlL3NlcnZlci9pbnRlcm5hbC9wYi9zYW5kdGFibGUvdjE7c2FuZHRhYmxldjFiBnByb3RvMw");
 
 /**
  * @generated from message sandtable.v1.ClientMessage
@@ -328,6 +328,13 @@ export type StaticData = Message<"sandtable.v1.StaticData"> & {
    * @generated from field: repeated sandtable.v1.Faction factions = 6;
    */
   factions: Faction[];
+
+  /**
+   * state ID = index + 1; 0 = none
+   *
+   * @generated from field: repeated sandtable.v1.State states = 7;
+   */
+  states: State[];
 };
 
 /**
@@ -471,9 +478,25 @@ export type Province = Message<"sandtable.v1.Province"> & {
   y: number;
 
   /**
+   * supply hub
+   *
    * @generated from field: bool hub = 6;
    */
   hub: boolean;
+
+  /**
+   * state ID, 0 = none
+   *
+   * @generated from field: uint32 state = 7;
+   */
+  state: number;
+
+  /**
+   * victory points
+   *
+   * @generated from field: int32 vp = 8;
+   */
+  vp: number;
 };
 
 /**
@@ -501,6 +524,20 @@ export type Edge = Message<"sandtable.v1.Edge"> & {
    * @generated from field: int64 distance = 3;
    */
   distance: bigint;
+
+  /**
+   * along the shared border: 0 = none, 1 = small, 2 = large
+   *
+   * @generated from field: uint32 river = 4;
+   */
+  river: number;
+
+  /**
+   * railway level, 0 = none
+   *
+   * @generated from field: uint32 rail = 5;
+   */
+  rail: number;
 };
 
 /**
@@ -509,6 +546,54 @@ export type Edge = Message<"sandtable.v1.Edge"> & {
  */
 export const EdgeSchema: GenMessage<Edge> = /*@__PURE__*/
   messageDesc(file_sandtable_v1_sandtable, 13);
+
+/**
+ * A group of provinces with the industry and population of an area.
+ *
+ * @generated from message sandtable.v1.State
+ */
+export type State = Message<"sandtable.v1.State"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * province ID
+   *
+   * @generated from field: uint32 capital = 3;
+   */
+  capital: number;
+
+  /**
+   * @generated from field: int64 manpower = 4;
+   */
+  manpower: bigint;
+
+  /**
+   * military factories
+   *
+   * @generated from field: int32 factories = 5;
+   */
+  factories: number;
+
+  /**
+   * @generated from field: int32 infrastructure = 6;
+   */
+  infrastructure: number;
+};
+
+/**
+ * Describes the message sandtable.v1.State.
+ * Use `create(StateSchema)` to create a new message.
+ */
+export const StateSchema: GenMessage<State> = /*@__PURE__*/
+  messageDesc(file_sandtable_v1_sandtable, 14);
 
 /**
  * @generated from message sandtable.v1.Faction
@@ -523,6 +608,13 @@ export type Faction = Message<"sandtable.v1.Faction"> & {
    * @generated from field: string name = 2;
    */
   name: string;
+
+  /**
+   * province ID, -1 = none
+   *
+   * @generated from field: int32 capital = 3;
+   */
+  capital: number;
 };
 
 /**
@@ -530,7 +622,7 @@ export type Faction = Message<"sandtable.v1.Faction"> & {
  * Use `create(FactionSchema)` to create a new message.
  */
 export const FactionSchema: GenMessage<Faction> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 14);
+  messageDesc(file_sandtable_v1_sandtable, 15);
 
 /**
  * @generated from message sandtable.v1.ProvinceView
@@ -566,7 +658,7 @@ export type ProvinceView = Message<"sandtable.v1.ProvinceView"> & {
  * Use `create(ProvinceViewSchema)` to create a new message.
  */
 export const ProvinceViewSchema: GenMessage<ProvinceView> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 15);
+  messageDesc(file_sandtable_v1_sandtable, 16);
 
 /**
  * @generated from message sandtable.v1.DivisionView
@@ -640,7 +732,7 @@ export type DivisionView = Message<"sandtable.v1.DivisionView"> & {
  * Use `create(DivisionViewSchema)` to create a new message.
  */
 export const DivisionViewSchema: GenMessage<DivisionView> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 16);
+  messageDesc(file_sandtable_v1_sandtable, 17);
 
 /**
  * @generated from message sandtable.v1.Snapshot
@@ -667,7 +759,7 @@ export type Snapshot = Message<"sandtable.v1.Snapshot"> & {
  * Use `create(SnapshotSchema)` to create a new message.
  */
 export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 17);
+  messageDesc(file_sandtable_v1_sandtable, 18);
 
 /**
  * @generated from message sandtable.v1.RemovedDivision
@@ -689,7 +781,7 @@ export type RemovedDivision = Message<"sandtable.v1.RemovedDivision"> & {
  * Use `create(RemovedDivisionSchema)` to create a new message.
  */
 export const RemovedDivisionSchema: GenMessage<RemovedDivision> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 18);
+  messageDesc(file_sandtable_v1_sandtable, 19);
 
 /**
  * @generated from message sandtable.v1.Delta
@@ -725,7 +817,7 @@ export type Delta = Message<"sandtable.v1.Delta"> & {
  * Use `create(DeltaSchema)` to create a new message.
  */
 export const DeltaSchema: GenMessage<Delta> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 19);
+  messageDesc(file_sandtable_v1_sandtable, 20);
 
 /**
  * @generated from message sandtable.v1.CommandResult
@@ -757,7 +849,7 @@ export type CommandResult = Message<"sandtable.v1.CommandResult"> & {
  * Use `create(CommandResultSchema)` to create a new message.
  */
 export const CommandResultSchema: GenMessage<CommandResult> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 20);
+  messageDesc(file_sandtable_v1_sandtable, 21);
 
 /**
  * @generated from message sandtable.v1.Player
@@ -779,7 +871,7 @@ export type Player = Message<"sandtable.v1.Player"> & {
  * Use `create(PlayerSchema)` to create a new message.
  */
 export const PlayerSchema: GenMessage<Player> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 21);
+  messageDesc(file_sandtable_v1_sandtable, 22);
 
 /**
  * @generated from message sandtable.v1.MatchStatus
@@ -823,7 +915,7 @@ export type MatchStatus = Message<"sandtable.v1.MatchStatus"> & {
  * Use `create(MatchStatusSchema)` to create a new message.
  */
 export const MatchStatusSchema: GenMessage<MatchStatus> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 22);
+  messageDesc(file_sandtable_v1_sandtable, 23);
 
 /**
  * @generated from message sandtable.v1.Error
@@ -850,7 +942,7 @@ export type Error = Message<"sandtable.v1.Error"> & {
  * Use `create(ErrorSchema)` to create a new message.
  */
 export const ErrorSchema: GenMessage<Error> = /*@__PURE__*/
-  messageDesc(file_sandtable_v1_sandtable, 23);
+  messageDesc(file_sandtable_v1_sandtable, 24);
 
 /**
  * @generated from enum sandtable.v1.RemoveReason

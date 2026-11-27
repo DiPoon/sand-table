@@ -75,6 +75,7 @@ message StaticData {
   repeated Province provinces = 4;   // index = province ID
   repeated Edge edges = 5;
   repeated Faction factions = 6;     // faction ID = index + 1
+  repeated State states = 7;         // state ID = index + 1; 0 = none
 }
 
 message Terrain {
@@ -105,18 +106,33 @@ message Province {
   uint32 terrain = 3;
   int32 x = 4;
   int32 y = 5;
-  bool hub = 6;
+  bool hub = 6; // supply hub
+  uint32 state = 7; // state ID, 0 = none
+  int32 vp = 8; // victory points
 }
 
 message Edge {
   uint32 a = 1;
   uint32 b = 2;
   int64 distance = 3;
+  uint32 river = 4; // along the shared border: 0 = none, 1 = small, 2 = large
+  uint32 rail = 5; // railway level, 0 = none
+}
+
+// A group of provinces with the industry and population of an area.
+message State {
+  string key = 1;
+  string name = 2;
+  uint32 capital = 3; // province ID
+  int64 manpower = 4;
+  int32 factories = 5; // military factories
+  int32 infrastructure = 6;
 }
 
 message Faction {
   string key = 1;
   string name = 2;
+  int32 capital = 3; // province ID, -1 = none
 }
 
 message ProvinceView {
