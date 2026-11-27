@@ -132,7 +132,7 @@ message State {
 message Faction {
   string key = 1;
   string name = 2;
-  int32 capital = 3; // province ID, -1 = none
+  uint32 capital = 3; // province ID + 1, 0 = none
 }
 
 message ProvinceView {

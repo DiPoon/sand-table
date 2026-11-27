@@ -4,7 +4,7 @@ import { CommandStatus, type CommandResult, MatchPhase, type Error as ServerErro
 import { Camera, geometryFor, type MapGeometry, type Point } from "../geometry";
 import { attachInput } from "../input";
 import { clearSession, type ConnState, defaultURL, Session, type JoinInfo } from "../net";
-import { type Highlight, type MapMode, Renderer } from "../render";
+import { type Highlight, type Hit, type MapMode, Renderer } from "../render";
 import { type Change, type StaticInfo, Store } from "../store";
 import { S } from "../strings";
 import { el } from "./dom";
@@ -298,6 +298,13 @@ export class Game {
     const r = this.canvas.getBoundingClientRect();
     const s = this.cam.toScreen(this.geo.sites[province]);
     return { x: s.x + r.left, y: s.y + r.top };
+  }
+
+  /** The province and the counter under a point in page coordinates, for tests. */
+  probe(x: number, y: number): { province: number; hit: Hit | null } {
+    const r = this.canvas.getBoundingClientRect();
+    const p = { x: x - r.left, y: y - r.top };
+    return { province: this.geo ? this.geo.find(this.cam.toWorld(p)) : -1, hit: this.renderer.hit(p) };
   }
 
   /** Screen position of a division's counter as last drawn, for tests. */

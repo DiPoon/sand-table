@@ -13,7 +13,7 @@ make build         # 웹 클라이언트(client/dist) + bin/ 에 실행 파일 4
 
 cd server
 ../bin/sandtable-server                       # http://127.0.0.1:8080, 상태는 server/var/default/
-../bin/sandtable-server -scenario generated   # 생성된 큰 맵으로 (아래 sandtable-mapgen)
+../bin/sandtable-server -scenario generated -state-dir var/generated   # 생성된 큰 맵으로. 샘플 맵의 방과 상태 디렉토리를 나눈다
 ../bin/sandtable-cli -faction azure           # 터미널 클라이언트. crimson도 같은 방식
 ../bin/sandtable-replay -dir var/default      # 명령 로그를 틱 0부터 재생해 해시와 스냅샷 검증
 ../bin/sandtable-mapgen -seed 1               # data/maps, data/scenarios에 generated.yaml을 만든다

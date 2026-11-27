@@ -51,13 +51,31 @@ test("map modes switch and a province shows its state and victory points", async
     await page.locator(".mapmodes button", { hasText: label }).click();
     await expect(page.locator(".mapmodes button", { hasText: label })).toHaveAttribute("aria-pressed", "true");
   }
-  // Click this faction's capital.
-  const at = await page.evaluate(() => {
+  // Zoom in on this faction's capital and click a spot in its cell that no
+  // counter covers: a click on a counter would select the division instead.
+  const capital = await page.evaluate(() => {
     const g = (window as any).sandtable;
-    const f = g.store.static.faction(g.store.factionId);
-    return g.screenOf(f.capital);
+    return g.store.static.faction(g.store.factionId).capital as number;
   });
-  await page.mouse.click(at.x, at.y);
+  const c = await page.evaluate((p) => (window as any).sandtable.screenOf(p), capital);
+  await page.mouse.move(c.x, c.y);
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -300);
+  await page.waitForTimeout(200);
+  const at = await page.evaluate((cap) => {
+    const g = (window as any).sandtable;
+    const s = g.screenOf(cap);
+    const cell = g.geometry.spacing[cap] * g.cam.scale;
+    for (let r = 0.1; r <= 0.45; r += 0.05) {
+      for (let k = 0; k < 16; k++) {
+        const p = { x: s.x + Math.cos((k * Math.PI) / 8) * r * cell, y: s.y + Math.sin((k * Math.PI) / 8) * r * cell };
+        const hit = g.probe(p.x, p.y);
+        if (hit.province === cap && !hit.hit) return p;
+      }
+    }
+    return null;
+  }, capital);
+  expect(at).not.toBeNull();
+  await page.mouse.click(at!.x, at!.y);
   await expect(page.locator(".panel")).toContainText("주");
   await expect(page.locator(".panel")).toContainText("승점");
   await expect(page.locator(".panel")).toContainText("의 수도");

@@ -1535,7 +1535,7 @@ type Faction struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Capital       int32                  `protobuf:"varint,3,opt,name=capital,proto3" json:"capital,omitempty"` // province ID, -1 = none
+	Capital       uint32                 `protobuf:"varint,3,opt,name=capital,proto3" json:"capital,omitempty"` // province ID + 1, 0 = none
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1584,7 +1584,7 @@ func (x *Faction) GetName() string {
 	return ""
 }
 
-func (x *Faction) GetCapital() int32 {
+func (x *Faction) GetCapital() uint32 {
 	if x != nil {
 		return x.Capital
 	}
@@ -2340,7 +2340,7 @@ const file_sandtable_v1_sandtable_proto_rawDesc = "" +
 	"\aFaction\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
-	"\acapital\x18\x03 \x01(\x05R\acapital\"u\n" +
+	"\acapital\x18\x03 \x01(\rR\acapital\"u\n" +
 	"\fProvinceView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1e\n" +
 	"\n" +

@@ -98,7 +98,7 @@ type Region struct {
 type Faction struct {
 	Key     string
 	Name    string
-	Capital ProvinceID // NoProvince if the scenario names none
+	Capital ProvinceID // NoProvince if the scenario names none; 0 is a real province
 }
 
 type Rules struct {
@@ -129,7 +129,7 @@ type World struct {
 	Terrains      []Terrain
 	UnitTypes     []UnitType
 	Provinces     []Province
-	Regions       []Region  // index 0 is the unused "none" entry
+	Regions       []Region  // index 0 is the unused "none" entry; worlds built in code must have it too
 	Factions      []Faction // index 0 is the unused "none" entry
 	InitControl   []FactionID
 	InitDivisions []InitDivision

@@ -4,6 +4,7 @@ package gamedata
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -127,6 +128,13 @@ func index(kind string, keys []string) (map[string]int, error) {
 	return m, nil
 }
 
+func tooMany(kind string, n, limit int) error {
+	if n > limit {
+		return fmt.Errorf("too many %s: %d, at most %d", kind, n, limit)
+	}
+	return nil
+}
+
 func inRange(name string, v, lo, hi int64) error {
 	if v < lo || v > hi {
 		return fmt.Errorf("%s = %d out of range [%d, %d]", name, v, lo, hi)
@@ -177,6 +185,16 @@ func Load(dir, scenario string) (*sim.World, error) {
 		inRange("vision.range", int64(r.VisionRange), 0, 100),
 	); err != nil {
 		return nil, fmt.Errorf("rules.yaml: %w", err)
+	}
+
+	// IDs are small integers in the simulation: refuse more entries than they can number.
+	if err := errors.Join(
+		tooMany("terrain types", len(rf.Terrain), math.MaxUint16+1),
+		tooMany("unit types", len(uf), math.MaxUint16+1),
+		tooMany("states", len(mf.States), math.MaxUint16), // state ID 0 is "none"
+		tooMany("provinces", len(mf.Provinces), math.MaxInt32),
+	); err != nil {
+		return nil, err
 	}
 
 	// Terrain.

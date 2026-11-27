@@ -124,7 +124,8 @@ export class StaticInfo {
       vp: p.vp,
     }));
     this.edges = s.edges.map((e) => ({ a: e.a, b: e.b, distance: Number(e.distance), river: e.river, rail: e.rail }));
-    this.factions = s.factions.map((f, i) => ({ id: i + 1, key: f.key, name: f.name, capital: f.capital }));
+    // The wire carries the capital as province ID + 1, so that a missing field means none.
+    this.factions = s.factions.map((f, i) => ({ id: i + 1, key: f.key, name: f.name, capital: f.capital - 1 }));
     this.states = s.states.map((st, i) => ({
       id: i + 1,
       key: st.key,

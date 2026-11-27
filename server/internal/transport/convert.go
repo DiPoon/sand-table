@@ -33,12 +33,14 @@ func staticToPB(w *sim.World) *pb.StaticData {
 			}
 		}
 	}
-	for _, r := range w.Regions[1:] {
+	for i := 1; i < len(w.Regions); i++ { // index 0 is "none", and may be missing in a world built in code
+		r := &w.Regions[i]
 		s.States = append(s.States, &pb.State{Key: r.Key, Name: r.Name, Capital: uint32(r.Capital),
 			Manpower: r.Manpower, Factories: r.Factories, Infrastructure: r.Infrastructure})
 	}
 	for _, f := range w.Factions[1:] {
-		s.Factions = append(s.Factions, &pb.Faction{Key: f.Key, Name: f.Name, Capital: int32(f.Capital)})
+		// ID + 1, so that a missing field (0) means "none" rather than province 0.
+		s.Factions = append(s.Factions, &pb.Faction{Key: f.Key, Name: f.Name, Capital: uint32(f.Capital + 1)})
 	}
 	return s
 }
