@@ -34,17 +34,22 @@ type Options struct {
 	Rules    Rules   // from data/rules.yaml, see ReadRules
 }
 
-// Rules are the numbers of data/rules.yaml that decide where supply hubs go,
-// read from the file rather than copied, so that the map follows the rules.
+// Rules is what the generator takes from data/rules.yaml and data/units.yaml,
+// read from the files rather than copied, so that the map follows the data.
 type Rules struct {
 	MoveCost       map[string]float64 // per passable terrain key; plains = 1
 	SupplyMaxRange float64            // km plains-equivalent at which supply reaches zero
+	UnitTypes      map[string]bool    // unit type keys
 }
+
+// unitsUsed are the unit type keys of the first divisions.
+var unitsUsed = []string{"infantry", "armor"}
 
 // terrainsUsed are the terrain keys the generator gives land provinces.
 var terrainsUsed = []string{"plains", "forest", "hills", "mountain", "marsh", "urban"}
 
-// ReadRules reads the movement costs and the supply range from <dataDir>/rules.yaml.
+// ReadRules reads the movement costs and the supply range from
+// <dataDir>/rules.yaml, and the unit type keys from <dataDir>/units.yaml.
 func ReadRules(dataDir string) (Rules, error) {
 	var f struct {
 		Supply struct {
@@ -63,11 +68,24 @@ func ReadRules(dataDir string) (Rules, error) {
 	if err != nil {
 		return Rules{}, fmt.Errorf("mapgen: %w", err)
 	}
-	r := Rules{MoveCost: map[string]float64{}, SupplyMaxRange: f.Supply.MaxRange}
+	var units []struct {
+		ID string `yaml:"id"`
+	}
+	data, err = os.ReadFile(filepath.Join(dataDir, "units.yaml"))
+	if err == nil {
+		err = yaml.Unmarshal(data, &units)
+	}
+	if err != nil {
+		return Rules{}, fmt.Errorf("mapgen: %w", err)
+	}
+	r := Rules{MoveCost: map[string]float64{}, SupplyMaxRange: f.Supply.MaxRange, UnitTypes: map[string]bool{}}
 	for _, t := range f.Terrain {
 		if t.Passable == nil || *t.Passable {
 			r.MoveCost[t.ID] = t.MoveCost / 1000
 		}
+	}
+	for _, u := range units {
+		r.UnitTypes[u.ID] = true
 	}
 	return r, r.check()
 }
@@ -79,6 +97,11 @@ func (r Rules) check() error {
 	for _, k := range terrainsUsed {
 		if r.MoveCost[k] <= 0 {
 			return fmt.Errorf("mapgen: rules need a passable terrain %q with a move_cost", k)
+		}
+	}
+	for _, k := range unitsUsed {
+		if !r.UnitTypes[k] {
+			return fmt.Errorf("mapgen: units.yaml needs a unit type %q for the first divisions", k)
 		}
 	}
 	return nil
@@ -939,7 +962,7 @@ func ordinal(n int) string {
 }
 
 // divisions puts each faction's infantry along its border and its armour
-// around its capital, with the unit types of data/units.yaml.
+// around its capital: unitsUsed, which data/units.yaml must define (see Rules).
 func (m *Map) divisions() {
 	for f := range m.Factions {
 		var border []int

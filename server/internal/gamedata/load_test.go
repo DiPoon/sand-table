@@ -22,6 +22,7 @@ edges:
   - [a, b, 40]
   - [b, c, 40]
   - [c, d, 40]
+  - [c, x, 30]
 states:
   - {id: s1, name: One, capital: a, manpower: 1000, factories: 2, infrastructure: 3}
   - {id: s2, name: Two, capital: d, manpower: 500, factories: 0, infrastructure: 1}
@@ -113,6 +114,7 @@ func TestBadMapsAreRejected(t *testing.T) {
 		{"river where there is no border", "  - [b, c, large]", "  - [a, c, large]", "not adjacent", false},
 		{"river of an unknown kind", "  - [b, c, large]", "  - [b, c, huge]", "small or large", false},
 		{"railway level", "  - [a, b, 1]", "  - [a, b, 0]", "level", false},
+		{"river along a lake shore", "  - [b, c, large]", "  - [c, x, small]", "passable", false},
 		{"capital the faction does not hold", "{id: west, name: West, capital: a", "{id: west, name: West, capital: c", "capital", true},
 		{"state given to two factions", "states: [s2]}", "states: [s2, s1]}", "two factions", true},
 		{"state listed twice", "states: [s1]}", "states: [s1, s1]}", "listed twice", true},

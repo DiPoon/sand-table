@@ -472,6 +472,9 @@ func loadEdgeTags(w *sim.World, provIdx map[string]int, rivers, railways [][]any
 		if ab.River != sim.RiverNone {
 			return fmt.Errorf("river %d: duplicate river on %v", n, e[:2])
 		}
+		if !w.Terrains[w.Provinces[ab.To].Terrain].Passable || !w.Terrains[w.Provinces[ba.To].Terrain].Passable {
+			return fmt.Errorf("river %d: both sides must be passable", n)
+		}
 		ab.River, ba.River = kind, kind
 	}
 	for n, e := range railways {

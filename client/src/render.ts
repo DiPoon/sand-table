@@ -273,7 +273,7 @@ export class Renderer {
     const anchor = new DOMMatrix().translateSelf(-cam.x * cam.scale, -cam.y * cam.scale);
 
     // Cells: by mode the controller, terrain or state colour, or water; then
-    // the terrain pattern; then, on the political map, the fog over land.
+    // the terrain pattern; then the fog over land out of sight, lighter outside the political map.
     // Cells are grouped by fill so that a thousand cells take a few dozen fills.
     const fills = new Map<string, Path2D>();
     const patterned = new Map<number, Path2D>();

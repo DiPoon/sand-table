@@ -232,6 +232,11 @@ func TestNamesAndRules(t *testing.T) {
 	if _, err := Generate(Options{Seed: 1, Land: 60}); err == nil {
 		t.Error("generating without rules worked")
 	}
+	noArmor := withRules(t, Options{Seed: 1, Land: 60})
+	noArmor.Rules.UnitTypes = map[string]bool{"infantry": true, "tank": true}
+	if _, err := Generate(noArmor); err == nil {
+		t.Error("generating with units.yaml lacking armor worked")
+	}
 }
 
 func TestWriteKeepsHandWrittenFiles(t *testing.T) {
