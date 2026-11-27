@@ -5,6 +5,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 
 	"sandtable/server/internal/mapgen"
@@ -19,7 +20,7 @@ func main() {
 	flag.Float64Var(&o.Spacing, "spacing", 40, "km between neighbouring province centres")
 	dir := flag.String("data", "../data", "data directory")
 	flag.Parse()
-	if o.Land <= 0 || o.Factions <= 0 || o.Spacing <= 0 {
+	if o.Land <= 0 || o.Factions <= 0 || !(o.Spacing > 0) || math.IsInf(o.Spacing, 0) {
 		// Options treats zero as "use the default"; on the command line a zero is a mistake.
 		fmt.Fprintln(os.Stderr, "error: -land, -factions and -spacing must be positive")
 		os.Exit(2)

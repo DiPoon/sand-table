@@ -8,7 +8,7 @@ import {
   WelcomeSchema,
   type DivisionView,
 } from "./gen/sandtable/v1/sandtable_pb";
-import { Store } from "./store";
+import { edgeKey, Store } from "./store";
 
 // Round-trips through the wire format so that zero values really are absent,
 // as they are when the server sends them.
@@ -37,8 +37,8 @@ const welcome = wire(WelcomeSchema, {
       { a: 1, b: 2, distance: 40n },
     ],
     factions: [
-      { key: "azure", name: "Azure" },
-      { key: "crimson", name: "Crimson" },
+      { key: "azure", name: "Azure", capital: 1 }, // province 0, as ID + 1 on the wire
+      { key: "crimson", name: "Crimson" }, // no capital
     ],
   },
   status: { phase: 2, speed: 1, tick: 10n, hostFaction: 1 },
@@ -198,9 +198,27 @@ describe("Store", () => {
     expect(store.attackTarget(store.division(1)!)).toBeUndefined(); // the battle is over
   });
 
+  it("finds capitals by province", () => {
+    const st = store.static!;
+    expect(st.capitalOf(0)?.key).toBe("azure");
+    expect(st.capitalOf(1)).toBeUndefined();
+  });
+
   it("keeps the static object across a reconnect with the same data", () => {
     const before = store.static;
     store.welcome(welcome);
     expect(store.static).toBe(before);
+  });
+});
+
+describe("edgeKey", () => {
+  it("does not mix up edges of a map with more than 2^20 provinces", () => {
+    const n = 1_048_579;
+    expect(edgeKey(0, 1_048_578, n)).not.toBe(edgeKey(1, 2, n));
+    expect(edgeKey(5, 3, n)).toBe(edgeKey(3, 5, n));
+    // The largest map the loader takes still gives exact keys.
+    const big = 1 << 24;
+    expect(edgeKey(big - 2, big - 1, big)).toBe((big - 2) * big + big - 1);
+    expect(Number.isSafeInteger(edgeKey(big - 2, big - 1, big))).toBe(true);
   });
 });

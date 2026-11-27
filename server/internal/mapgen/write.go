@@ -91,7 +91,10 @@ func (m *Map) ScenarioYAML() []byte {
 }
 
 // Write saves both files under dir (the data directory). It refuses, before
-// writing either, to replace a file that the generator did not write.
+// writing either, to replace a file that the generator did not write. Both
+// are written in full to temporary files first and only then renamed into
+// place, so that a failed write (a full disk, a read-only directory) leaves
+// the old pair as it was instead of a new map with an old scenario.
 func (m *Map) Write(dir string) error {
 	files := []struct {
 		path string
@@ -112,8 +115,26 @@ func (m *Map) Write(dir string) error {
 			return err
 		}
 	}
+	var tmps []string
+	defer func() {
+		for _, t := range tmps {
+			os.Remove(t) // left over only if something failed
+		}
+	}()
 	for _, f := range files {
-		if err := os.WriteFile(f.path, f.data, 0o644); err != nil {
+		tmp, err := os.CreateTemp(filepath.Dir(f.path), "."+filepath.Base(f.path)+".*.tmp")
+		if err != nil {
+			return err
+		}
+		tmps = append(tmps, tmp.Name())
+		_, err = tmp.Write(f.data)
+		err = errors.Join(err, tmp.Chmod(0o644), tmp.Close())
+		if err != nil {
+			return err
+		}
+	}
+	for i, f := range files {
+		if err := os.Rename(tmps[i], f.path); err != nil {
 			return err
 		}
 	}

@@ -38,6 +38,7 @@ type Options struct {
 // read from the files rather than copied, so that the map follows the data.
 type Rules struct {
 	MoveCost       map[string]float64 // per passable terrain key; plains = 1
+	Impassable     map[string]bool    // impassable terrain keys
 	SupplyMaxRange float64            // km plains-equivalent at which supply reaches zero
 	UnitTypes      map[string]bool    // unit type keys
 }
@@ -45,8 +46,19 @@ type Rules struct {
 // unitsUsed are the unit type keys of the first divisions.
 var unitsUsed = []string{"infantry", "armor"}
 
-// terrainsUsed are the terrain keys the generator gives land provinces.
-var terrainsUsed = []string{"plains", "forest", "hills", "mountain", "marsh", "urban"}
+// terrainsUsed are the terrain keys the generator gives land provinces, and
+// waterUsed the ones it gives water.
+var (
+	terrainsUsed = []string{"plains", "forest", "hills", "mountain", "marsh", "urban"}
+	waterUsed    = []string{"sea", "lake"}
+)
+
+// Limits that keep a generated map loadable: the loader takes edges of
+// 1 to 100,000 km (gamedata), and spacing bounds how long edges get.
+const (
+	maxSpacing = 1000    // km
+	maxEdgeKm  = 100_000 // as gamedata.Load
+)
 
 // ReadRules reads the movement costs and the supply range from
 // <dataDir>/rules.yaml, and the unit type keys from <dataDir>/units.yaml.
@@ -78,10 +90,13 @@ func ReadRules(dataDir string) (Rules, error) {
 	if err != nil {
 		return Rules{}, fmt.Errorf("mapgen: %w", err)
 	}
-	r := Rules{MoveCost: map[string]float64{}, SupplyMaxRange: f.Supply.MaxRange, UnitTypes: map[string]bool{}}
+	r := Rules{MoveCost: map[string]float64{}, Impassable: map[string]bool{}, SupplyMaxRange: f.Supply.MaxRange,
+		UnitTypes: map[string]bool{}}
 	for _, t := range f.Terrain {
 		if t.Passable == nil || *t.Passable {
 			r.MoveCost[t.ID] = t.MoveCost / 1000
+		} else {
+			r.Impassable[t.ID] = true
 		}
 	}
 	for _, u := range units {
@@ -97,6 +112,11 @@ func (r Rules) check() error {
 	for _, k := range terrainsUsed {
 		if r.MoveCost[k] <= 0 {
 			return fmt.Errorf("mapgen: rules need a passable terrain %q with a move_cost", k)
+		}
+	}
+	for _, k := range waterUsed {
+		if !r.Impassable[k] {
+			return fmt.Errorf("mapgen: rules need an impassable terrain %q for water", k)
 		}
 	}
 	for _, k := range unitsUsed {
@@ -198,8 +218,9 @@ type Map struct {
 // Generate makes a map. The same options always give the same map.
 func Generate(opt Options) (*Map, error) {
 	opt.defaults()
-	if opt.Land < 50 || opt.Factions < 2 || opt.Factions > 8 || opt.Spacing < 5 {
-		return nil, errors.New("mapgen: need at least 50 land provinces, 2 to 8 factions and a spacing of 5 km or more")
+	// Written so that NaN, which fails every comparison, fails these too.
+	if opt.Land < 50 || opt.Factions < 2 || opt.Factions > 8 || !(opt.Spacing >= 5 && opt.Spacing <= maxSpacing) {
+		return nil, fmt.Errorf("mapgen: need at least 50 land provinces, 2 to 8 factions and a spacing of 5 to %d km", maxSpacing)
 	}
 	if !validName.MatchString(opt.Name) {
 		return nil, fmt.Errorf("mapgen: name %q: use lower case letters, digits, - and _", opt.Name)
@@ -215,6 +236,11 @@ func Generate(opt Options) (*Map, error) {
 	m.classify()
 	m.terrain()
 	m.buildEdges()
+	for _, e := range m.Edges {
+		if e.Dist > maxEdgeKm {
+			return nil, fmt.Errorf("mapgen: an edge of %d km is longer than the loader takes (%d)", e.Dist, maxEdgeKm)
+		}
+	}
 	m.rivers()
 	m.states()
 	if err := m.factions(); err != nil {

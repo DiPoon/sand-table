@@ -2,6 +2,7 @@ package mapgen
 
 import (
 	"bytes"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,16 +24,26 @@ func withRules(t testing.TB, o Options) Options {
 	return o
 }
 
+// must stops the test on a setup error, so that it shows instead of a later, confusing failure.
+func must(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSameSeedSameFiles(t *testing.T) {
 	a, err := Generate(withRules(t, Options{Seed: 7, Land: 300}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, _ := Generate(withRules(t, Options{Seed: 7, Land: 300}))
+	b, err := Generate(withRules(t, Options{Seed: 7, Land: 300}))
+	must(t, err)
 	if !bytes.Equal(a.MapYAML(), b.MapYAML()) || !bytes.Equal(a.ScenarioYAML(), b.ScenarioYAML()) {
 		t.Fatal("the same seed gave different files")
 	}
-	c, _ := Generate(withRules(t, Options{Seed: 8, Land: 300}))
+	c, err := Generate(withRules(t, Options{Seed: 8, Land: 300}))
+	must(t, err)
 	if bytes.Equal(a.MapYAML(), c.MapYAML()) {
 		t.Fatal("a different seed gave the same map")
 	}
@@ -43,14 +54,14 @@ func load(t testing.TB, m *Map) *sim.World {
 	t.Helper()
 	dir := t.TempDir()
 	for _, sub := range []string{"maps", "scenarios"} {
-		os.MkdirAll(filepath.Join(dir, sub), 0o755)
+		must(t, os.MkdirAll(filepath.Join(dir, sub), 0o755))
 	}
 	for _, f := range []string{"rules.yaml", "units.yaml"} {
 		data, err := os.ReadFile(filepath.Join("../../../data", f))
 		if err != nil {
 			t.Fatal(err)
 		}
-		os.WriteFile(filepath.Join(dir, f), data, 0o644)
+		must(t, os.WriteFile(filepath.Join(dir, f), data, 0o644))
 	}
 	if err := m.Write(dir); err != nil {
 		t.Fatal(err)
@@ -255,12 +266,72 @@ func TestWriteKeepsHandWrittenFiles(t *testing.T) {
 	}
 	// A hand-written scenario of that name stops it, before the map is touched.
 	hand := []byte("map: mine\nfactions: []\n")
-	os.WriteFile(filepath.Join(dir, "scenarios", "mine.yaml"), hand, 0o644)
-	os.WriteFile(filepath.Join(dir, "maps", "mine.yaml"), []byte(generatedMark+" earlier\n"), 0o644)
+	must(t, os.WriteFile(filepath.Join(dir, "scenarios", "mine.yaml"), hand, 0o644))
+	must(t, os.WriteFile(filepath.Join(dir, "maps", "mine.yaml"), []byte(generatedMark+" earlier\n"), 0o644))
 	if err := m.Write(dir); err == nil {
 		t.Fatal("overwrote a hand-written scenario")
 	}
 	if got, _ := os.ReadFile(filepath.Join(dir, "maps", "mine.yaml")); string(got) != generatedMark+" earlier\n" {
 		t.Fatal("wrote the map before refusing the scenario")
+	}
+}
+
+func TestSpacingLimits(t *testing.T) {
+	for _, sp := range []float64{math.NaN(), math.Inf(1), math.Inf(-1), 4, maxSpacing + 1, 60000} {
+		if _, err := Generate(withRules(t, Options{Seed: 1, Land: 60, Spacing: sp})); err == nil {
+			t.Errorf("spacing %v was accepted", sp)
+		}
+	}
+	// The largest spacing allowed still makes a map the server loads.
+	m, err := Generate(withRules(t, Options{Seed: 1, Land: 60, Spacing: maxSpacing}))
+	must(t, err)
+	load(t, m)
+}
+
+func TestWaterTerrainsMustBeImpassable(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		break_ func(r *Rules)
+	}{
+		{"no sea", func(r *Rules) { delete(r.Impassable, "sea") }},
+		{"a passable lake", func(r *Rules) { delete(r.Impassable, "lake"); r.MoveCost["lake"] = 1 }},
+	} {
+		o := withRules(t, Options{Seed: 1, Land: 60})
+		tc.break_(&o.Rules)
+		if _, err := Generate(o); err == nil {
+			t.Errorf("%s: accepted", tc.name)
+		}
+	}
+}
+
+// A write that fails half way leaves the old map and scenario as they were.
+func TestFailedWriteKeepsTheOldPair(t *testing.T) {
+	m, err := Generate(withRules(t, Options{Seed: 1, Land: 60, Name: "pair"}))
+	must(t, err)
+	dir := t.TempDir()
+	must(t, m.Write(dir))
+	before, err := os.ReadFile(filepath.Join(dir, "maps", "pair.yaml"))
+	must(t, err)
+
+	other, err := Generate(withRules(t, Options{Seed: 2, Land: 60, Name: "pair"}))
+	must(t, err)
+	// Neither the scenario nor its directory can be written: replacing the
+	// file in place fails, and so does creating a new one next to it.
+	scen := filepath.Join(dir, "scenarios")
+	must(t, os.Chmod(filepath.Join(scen, "pair.yaml"), 0o444))
+	must(t, os.Chmod(scen, 0o555))
+	defer os.Chmod(scen, 0o755)
+	if err := other.Write(dir); err == nil {
+		t.Skip("the directory is writable anyway (running as root?)")
+	}
+	after, err := os.ReadFile(filepath.Join(dir, "maps", "pair.yaml"))
+	must(t, err)
+	if string(after) != string(before) {
+		t.Fatal("the map was replaced although the scenario could not be")
+	}
+	entries, err := os.ReadDir(filepath.Join(dir, "maps"))
+	must(t, err)
+	if len(entries) != 1 {
+		t.Fatalf("left behind in maps/: %d files", len(entries))
 	}
 }

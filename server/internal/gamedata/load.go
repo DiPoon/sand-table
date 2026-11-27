@@ -192,7 +192,7 @@ func Load(dir, scenario string) (*sim.World, error) {
 		tooMany("terrain types", len(rf.Terrain), math.MaxUint16+1),
 		tooMany("unit types", len(uf), math.MaxUint16+1),
 		tooMany("states", len(mf.States), math.MaxUint16), // state ID 0 is "none"
-		tooMany("provinces", len(mf.Provinces), math.MaxInt32),
+		tooMany("provinces", len(mf.Provinces), 1<<24),    // the client keys edges by a*n+b in a float64: (2^24)^2 < 2^53
 	); err != nil {
 		return nil, err
 	}

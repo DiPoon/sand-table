@@ -80,6 +80,14 @@ export interface Faction {
   capital: number; // province ID, -1 = none
 }
 
+/**
+ * One number for the edge a-b of a map with n provinces, the same either way
+ * round. It is exact while n² < 2⁵³; the loader allows at most 2²⁴ provinces.
+ */
+export function edgeKey(a: number, b: number, n: number): number {
+  return a < b ? a * n + b : b * n + a;
+}
+
 export class StaticInfo {
   readonly dataHash: string;
   readonly terrains: Terrain[];
@@ -89,6 +97,7 @@ export class StaticInfo {
   readonly factions: Faction[];
   readonly states: MapState[];
   private readonly edgeIndex = new Map<number, Edge>();
+  private readonly capitals: (Faction | undefined)[] = []; // by province
 
   constructor(s: StaticData) {
     this.dataHash = Array.from(s.dataHash, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -136,26 +145,25 @@ export class StaticInfo {
       infrastructure: st.infrastructure,
     }));
     for (const e of this.edges) {
-      this.edgeIndex.set(this.edgeKey(e.a, e.b), e);
+      this.edgeIndex.set(edgeKey(e.a, e.b, this.provinces.length), e);
+    }
+    for (const f of this.factions) {
+      if (f.capital >= 0) this.capitals[f.capital] = f;
     }
   }
 
   /** The edge between two adjacent provinces, either way round. */
   edge(a: number, b: number): Edge | undefined {
-    return this.edgeIndex.get(this.edgeKey(a, b));
+    return this.edgeIndex.get(edgeKey(a, b, this.provinces.length));
   }
 
   state(id: number): MapState | undefined {
     return id >= 1 ? this.states[id - 1] : undefined;
   }
 
-  /** The faction whose capital this province is, if any. */
+  /** The faction whose capital this province is, if any. Called for every province on every frame. */
   capitalOf(province: number): Faction | undefined {
-    return this.factions.find((f) => f.capital === province);
-  }
-
-  private edgeKey(a: number, b: number): number {
-    return a < b ? a * 0x100000 + b : b * 0x100000 + a;
+    return this.capitals[province];
   }
 
   /** Distance in km between two adjacent provinces, or undefined if they are not adjacent. */

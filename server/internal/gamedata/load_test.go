@@ -44,17 +44,23 @@ divisions:
 func load(t *testing.T, mapYAML, scenarioYAML string) (*sim.World, error) {
 	t.Helper()
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "maps"), 0o755)
-	os.MkdirAll(filepath.Join(dir, "scenarios"), 0o755)
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(os.MkdirAll(filepath.Join(dir, "maps"), 0o755))
+	must(os.MkdirAll(filepath.Join(dir, "scenarios"), 0o755))
 	for _, f := range []string{"rules.yaml", "units.yaml"} {
 		data, err := os.ReadFile(filepath.Join("../../../data", f))
 		if err != nil {
 			t.Fatal(err)
 		}
-		os.WriteFile(filepath.Join(dir, f), data, 0o644)
+		must(os.WriteFile(filepath.Join(dir, f), data, 0o644))
 	}
-	os.WriteFile(filepath.Join(dir, "maps", "m.yaml"), []byte(mapYAML), 0o644)
-	os.WriteFile(filepath.Join(dir, "scenarios", "s.yaml"), []byte(scenarioYAML), 0o644)
+	must(os.WriteFile(filepath.Join(dir, "maps", "m.yaml"), []byte(mapYAML), 0o644))
+	must(os.WriteFile(filepath.Join(dir, "scenarios", "s.yaml"), []byte(scenarioYAML), 0o644))
 	return gamedata.Load(dir, "s")
 }
 
