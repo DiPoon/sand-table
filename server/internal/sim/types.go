@@ -14,10 +14,24 @@ type (
 	DivisionID uint32
 	UnitTypeID uint16
 	TerrainID  uint16
+	RegionID   uint16
 )
 
 // NoFaction is the controller of an uncontrolled province.
 const NoFaction FactionID = 0
+
+// NoRegion is the region of a province that belongs to none (water).
+const NoRegion RegionID = 0
+
+// NoProvince stands for "no province", for example a faction without a capital.
+const NoProvince ProvinceID = -1
+
+// Rivers along the border of two adjacent provinces.
+const (
+	RiverNone  uint8 = 0
+	RiverSmall uint8 = 1
+	RiverLarge uint8 = 2
+)
 
 // Combat roles of a division in a battle.
 const (
@@ -53,6 +67,8 @@ type UnitType struct {
 type Edge struct {
 	To       ProvinceID
 	Distance int64 // km
+	River    uint8 // RiverNone, RiverSmall or RiverLarge along the shared border
+	Rail     uint8 // railway level, 0 = none
 }
 
 type Province struct {
@@ -60,13 +76,30 @@ type Province struct {
 	Name    string
 	Terrain TerrainID
 	X, Y    int32
-	Hub     bool
+	Hub     bool // supply hub
+	Region  RegionID
+	VP      int32  // victory points
 	Adj     []Edge // sorted by To
 }
 
+// Region is a group of provinces with the industry and population of an
+// area. Data files, the protocol and the documents call it a state (주);
+// here State is already the dynamic match state.
+type Region struct {
+	Key            string
+	Name           string
+	Capital        ProvinceID
+	Provinces      []ProvinceID // ascending
+	Manpower       int64        // population that can be recruited
+	Factories      int32        // military factories
+	Infrastructure int32
+}
+
 type Faction struct {
-	Key  string
-	Name string
+	Key        string
+	Name       string
+	HasCapital bool       // false in the zero value: a faction built in code has no capital
+	Capital    ProvinceID // valid only if HasCapital
 }
 
 type Rules struct {
@@ -97,6 +130,7 @@ type World struct {
 	Terrains      []Terrain
 	UnitTypes     []UnitType
 	Provinces     []Province
+	Regions       []Region  // index 0 is the unused "none" entry; worlds built in code must have it too
 	Factions      []Faction // index 0 is the unused "none" entry
 	InitControl   []FactionID
 	InitDivisions []InitDivision

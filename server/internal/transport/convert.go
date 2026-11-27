@@ -25,15 +25,25 @@ func staticToPB(w *sim.World) *pb.StaticData {
 	}
 	for i, p := range w.Provinces {
 		s.Provinces = append(s.Provinces, &pb.Province{Key: p.Key, Name: p.Name, Terrain: uint32(p.Terrain),
-			X: p.X, Y: p.Y, Hub: p.Hub})
+			X: p.X, Y: p.Y, Hub: p.Hub, State: uint32(p.Region), Vp: p.VP})
 		for _, e := range p.Adj {
 			if int(e.To) > i {
-				s.Edges = append(s.Edges, &pb.Edge{A: uint32(i), B: uint32(e.To), Distance: e.Distance})
+				s.Edges = append(s.Edges, &pb.Edge{A: uint32(i), B: uint32(e.To), Distance: e.Distance,
+					River: uint32(e.River), Rail: uint32(e.Rail)})
 			}
 		}
 	}
+	for i := 1; i < len(w.Regions); i++ { // index 0 is "none", and may be missing in a world built in code
+		r := &w.Regions[i]
+		s.States = append(s.States, &pb.State{Key: r.Key, Name: r.Name, Capital: uint32(r.Capital),
+			Manpower: r.Manpower, Factories: r.Factories, Infrastructure: r.Infrastructure})
+	}
 	for _, f := range w.Factions[1:] {
-		s.Factions = append(s.Factions, &pb.Faction{Key: f.Key, Name: f.Name})
+		pf := &pb.Faction{Key: f.Key, Name: f.Name}
+		if f.HasCapital {
+			pf.Capital = uint32(f.Capital) + 1 // ID + 1, so that a missing field (0) means none
+		}
+		s.Factions = append(s.Factions, pf)
 	}
 	return s
 }

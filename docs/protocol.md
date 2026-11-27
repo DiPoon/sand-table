@@ -44,7 +44,7 @@ S → C   Delta{tick = T+1, ...}, Delta{tick = T+2, ...}, ...     틱마다 1개
 
 | 메시지 | 필드 | 언제 |
 |---|---|---|
-| `Welcome` | `faction_id`, `session_token`, `static`, `status` | 접속 승인. `static`은 정적 데이터 전체 (프로빈스, 간선, 지형, 유닛 타입, 진영, 데이터 해시) |
+| `Welcome` | `faction_id`, `session_token`, `static`, `status` | 접속 승인. `static`은 정적 데이터 전체 (프로빈스와 그 주·승점, 간선과 그 강·철도, 주, 지형, 유닛 타입, 진영과 그 수도, 데이터 해시) |
 | `Snapshot` | `tick`, `provinces[]`, `divisions[]` | 접속 직후 1회 |
 | `Delta` | `tick`, `provinces[]`, `divisions[]`, `removed[]` | 틱마다 1개. 변화가 없어도 `tick`만 담아 보낸다 |
 | `CommandResult` | `client_seq`, `status`, `reason`, `apply_tick` | 명령 접수 직후. 드물게 적용 시점에 한 번 더 (거부) |

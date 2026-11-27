@@ -599,3 +599,22 @@ input {
 .lobby-card button.primary[hidden] {
   display: none;
 }
+
+/* ---- Map modes ---- */
+
+.mapmodes {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(30, 36, 44, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.mapmodes button {
+  border: none;
+  padding: 4px 12px;
+}

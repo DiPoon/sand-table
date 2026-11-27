@@ -986,6 +986,7 @@ type StaticData struct {
 	Provinces     []*Province            `protobuf:"bytes,4,rep,name=provinces,proto3" json:"provinces,omitempty"`                  // index = province ID
 	Edges         []*Edge                `protobuf:"bytes,5,rep,name=edges,proto3" json:"edges,omitempty"`
 	Factions      []*Faction             `protobuf:"bytes,6,rep,name=factions,proto3" json:"factions,omitempty"` // faction ID = index + 1
+	States        []*State               `protobuf:"bytes,7,rep,name=states,proto3" json:"states,omitempty"`     // state ID = index + 1; 0 = none
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1058,6 +1059,13 @@ func (x *StaticData) GetEdges() []*Edge {
 func (x *StaticData) GetFactions() []*Faction {
 	if x != nil {
 		return x.Factions
+	}
+	return nil
+}
+
+func (x *StaticData) GetStates() []*State {
+	if x != nil {
+		return x.States
 	}
 	return nil
 }
@@ -1269,7 +1277,9 @@ type Province struct {
 	Terrain       uint32                 `protobuf:"varint,3,opt,name=terrain,proto3" json:"terrain,omitempty"`
 	X             int32                  `protobuf:"varint,4,opt,name=x,proto3" json:"x,omitempty"`
 	Y             int32                  `protobuf:"varint,5,opt,name=y,proto3" json:"y,omitempty"`
-	Hub           bool                   `protobuf:"varint,6,opt,name=hub,proto3" json:"hub,omitempty"`
+	Hub           bool                   `protobuf:"varint,6,opt,name=hub,proto3" json:"hub,omitempty"`     // supply hub
+	State         uint32                 `protobuf:"varint,7,opt,name=state,proto3" json:"state,omitempty"` // state ID, 0 = none
+	Vp            int32                  `protobuf:"varint,8,opt,name=vp,proto3" json:"vp,omitempty"`       // victory points
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1346,11 +1356,27 @@ func (x *Province) GetHub() bool {
 	return false
 }
 
+func (x *Province) GetState() uint32 {
+	if x != nil {
+		return x.State
+	}
+	return 0
+}
+
+func (x *Province) GetVp() int32 {
+	if x != nil {
+		return x.Vp
+	}
+	return 0
+}
+
 type Edge struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	A             uint32                 `protobuf:"varint,1,opt,name=a,proto3" json:"a,omitempty"`
 	B             uint32                 `protobuf:"varint,2,opt,name=b,proto3" json:"b,omitempty"`
 	Distance      int64                  `protobuf:"varint,3,opt,name=distance,proto3" json:"distance,omitempty"`
+	River         uint32                 `protobuf:"varint,4,opt,name=river,proto3" json:"river,omitempty"` // along the shared border: 0 = none, 1 = small, 2 = large
+	Rail          uint32                 `protobuf:"varint,5,opt,name=rail,proto3" json:"rail,omitempty"`   // railway level, 0 = none
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1406,17 +1432,117 @@ func (x *Edge) GetDistance() int64 {
 	return 0
 }
 
+func (x *Edge) GetRiver() uint32 {
+	if x != nil {
+		return x.River
+	}
+	return 0
+}
+
+func (x *Edge) GetRail() uint32 {
+	if x != nil {
+		return x.Rail
+	}
+	return 0
+}
+
+// A group of provinces with the industry and population of an area.
+type State struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Key            string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Capital        uint32                 `protobuf:"varint,3,opt,name=capital,proto3" json:"capital,omitempty"` // province ID
+	Manpower       int64                  `protobuf:"varint,4,opt,name=manpower,proto3" json:"manpower,omitempty"`
+	Factories      int32                  `protobuf:"varint,5,opt,name=factories,proto3" json:"factories,omitempty"` // military factories
+	Infrastructure int32                  `protobuf:"varint,6,opt,name=infrastructure,proto3" json:"infrastructure,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *State) Reset() {
+	*x = State{}
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *State) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*State) ProtoMessage() {}
+
+func (x *State) ProtoReflect() protoreflect.Message {
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use State.ProtoReflect.Descriptor instead.
+func (*State) Descriptor() ([]byte, []int) {
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *State) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *State) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *State) GetCapital() uint32 {
+	if x != nil {
+		return x.Capital
+	}
+	return 0
+}
+
+func (x *State) GetManpower() int64 {
+	if x != nil {
+		return x.Manpower
+	}
+	return 0
+}
+
+func (x *State) GetFactories() int32 {
+	if x != nil {
+		return x.Factories
+	}
+	return 0
+}
+
+func (x *State) GetInfrastructure() int32 {
+	if x != nil {
+		return x.Infrastructure
+	}
+	return 0
+}
+
 type Faction struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Capital       uint32                 `protobuf:"varint,3,opt,name=capital,proto3" json:"capital,omitempty"` // province ID + 1, 0 = none
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Faction) Reset() {
 	*x = Faction{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[14]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1428,7 +1554,7 @@ func (x *Faction) String() string {
 func (*Faction) ProtoMessage() {}
 
 func (x *Faction) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[14]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1441,7 +1567,7 @@ func (x *Faction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Faction.ProtoReflect.Descriptor instead.
 func (*Faction) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{14}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Faction) GetKey() string {
@@ -1458,6 +1584,13 @@ func (x *Faction) GetName() string {
 	return ""
 }
 
+func (x *Faction) GetCapital() uint32 {
+	if x != nil {
+		return x.Capital
+	}
+	return 0
+}
+
 type ProvinceView struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1470,7 +1603,7 @@ type ProvinceView struct {
 
 func (x *ProvinceView) Reset() {
 	*x = ProvinceView{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[15]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1482,7 +1615,7 @@ func (x *ProvinceView) String() string {
 func (*ProvinceView) ProtoMessage() {}
 
 func (x *ProvinceView) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[15]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1495,7 +1628,7 @@ func (x *ProvinceView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProvinceView.ProtoReflect.Descriptor instead.
 func (*ProvinceView) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{15}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ProvinceView) GetId() uint32 {
@@ -1547,7 +1680,7 @@ type DivisionView struct {
 
 func (x *DivisionView) Reset() {
 	*x = DivisionView{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[16]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1559,7 +1692,7 @@ func (x *DivisionView) String() string {
 func (*DivisionView) ProtoMessage() {}
 
 func (x *DivisionView) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[16]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1572,7 +1705,7 @@ func (x *DivisionView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DivisionView.ProtoReflect.Descriptor instead.
 func (*DivisionView) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{16}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DivisionView) GetId() uint32 {
@@ -1670,7 +1803,7 @@ type Snapshot struct {
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[17]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1682,7 +1815,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[17]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1695,7 +1828,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{17}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Snapshot) GetTick() uint64 {
@@ -1729,7 +1862,7 @@ type RemovedDivision struct {
 
 func (x *RemovedDivision) Reset() {
 	*x = RemovedDivision{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[18]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1741,7 +1874,7 @@ func (x *RemovedDivision) String() string {
 func (*RemovedDivision) ProtoMessage() {}
 
 func (x *RemovedDivision) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[18]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1754,7 +1887,7 @@ func (x *RemovedDivision) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemovedDivision.ProtoReflect.Descriptor instead.
 func (*RemovedDivision) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{18}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RemovedDivision) GetId() uint32 {
@@ -1783,7 +1916,7 @@ type Delta struct {
 
 func (x *Delta) Reset() {
 	*x = Delta{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[19]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1795,7 +1928,7 @@ func (x *Delta) String() string {
 func (*Delta) ProtoMessage() {}
 
 func (x *Delta) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[19]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1808,7 +1941,7 @@ func (x *Delta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Delta.ProtoReflect.Descriptor instead.
 func (*Delta) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{19}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Delta) GetTick() uint64 {
@@ -1851,7 +1984,7 @@ type CommandResult struct {
 
 func (x *CommandResult) Reset() {
 	*x = CommandResult{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[20]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1863,7 +1996,7 @@ func (x *CommandResult) String() string {
 func (*CommandResult) ProtoMessage() {}
 
 func (x *CommandResult) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[20]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1876,7 +2009,7 @@ func (x *CommandResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandResult.ProtoReflect.Descriptor instead.
 func (*CommandResult) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{20}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CommandResult) GetClientSeq() uint32 {
@@ -1917,7 +2050,7 @@ type Player struct {
 
 func (x *Player) Reset() {
 	*x = Player{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[21]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1929,7 +2062,7 @@ func (x *Player) String() string {
 func (*Player) ProtoMessage() {}
 
 func (x *Player) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[21]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1942,7 +2075,7 @@ func (x *Player) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Player.ProtoReflect.Descriptor instead.
 func (*Player) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{21}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *Player) GetFactionId() uint32 {
@@ -1973,7 +2106,7 @@ type MatchStatus struct {
 
 func (x *MatchStatus) Reset() {
 	*x = MatchStatus{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[22]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1985,7 +2118,7 @@ func (x *MatchStatus) String() string {
 func (*MatchStatus) ProtoMessage() {}
 
 func (x *MatchStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[22]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1998,7 +2131,7 @@ func (x *MatchStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchStatus.ProtoReflect.Descriptor instead.
 func (*MatchStatus) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{22}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *MatchStatus) GetPhase() MatchPhase {
@@ -2054,7 +2187,7 @@ type Error struct {
 
 func (x *Error) Reset() {
 	*x = Error{}
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[23]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2066,7 +2199,7 @@ func (x *Error) String() string {
 func (*Error) ProtoMessage() {}
 
 func (x *Error) ProtoReflect() protoreflect.Message {
-	mi := &file_sandtable_v1_sandtable_proto_msgTypes[23]
+	mi := &file_sandtable_v1_sandtable_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2079,7 +2212,7 @@ func (x *Error) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Error.ProtoReflect.Descriptor instead.
 func (*Error) Descriptor() ([]byte, []int) {
-	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{23}
+	return file_sandtable_v1_sandtable_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Error) GetCode() ErrorCode {
@@ -2152,7 +2285,7 @@ const file_sandtable_v1_sandtable_proto_rawDesc = "" +
 	"faction_id\x18\x01 \x01(\rR\tfactionId\x12#\n" +
 	"\rsession_token\x18\x02 \x01(\tR\fsessionToken\x120\n" +
 	"\x06static\x18\x03 \x01(\v2\x18.sandtable.v1.StaticDataR\x06static\x121\n" +
-	"\x06status\x18\x04 \x01(\v2\x19.sandtable.v1.MatchStatusR\x06status\"\xa6\x02\n" +
+	"\x06status\x18\x04 \x01(\v2\x19.sandtable.v1.MatchStatusR\x06status\"\xd3\x02\n" +
 	"\n" +
 	"StaticData\x12\x1b\n" +
 	"\tdata_hash\x18\x01 \x01(\fR\bdataHash\x121\n" +
@@ -2161,7 +2294,8 @@ const file_sandtable_v1_sandtable_proto_rawDesc = "" +
 	"unit_types\x18\x03 \x03(\v2\x16.sandtable.v1.UnitTypeR\tunitTypes\x124\n" +
 	"\tprovinces\x18\x04 \x03(\v2\x16.sandtable.v1.ProvinceR\tprovinces\x12(\n" +
 	"\x05edges\x18\x05 \x03(\v2\x12.sandtable.v1.EdgeR\x05edges\x121\n" +
-	"\bfactions\x18\x06 \x03(\v2\x15.sandtable.v1.FactionR\bfactions\"\xb0\x01\n" +
+	"\bfactions\x18\x06 \x03(\v2\x15.sandtable.v1.FactionR\bfactions\x12+\n" +
+	"\x06states\x18\a \x03(\v2\x13.sandtable.v1.StateR\x06states\"\xb0\x01\n" +
 	"\aTerrain\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1b\n" +
@@ -2180,21 +2314,33 @@ const file_sandtable_v1_sandtable_proto_rawDesc = "" +
 	"\forg_recovery\x18\b \x01(\x03R\vorgRecovery\x12\x14\n" +
 	"\x05width\x18\t \x01(\x03R\x05width\x12)\n" +
 	"\x10reinforce_chance\x18\n" +
-	" \x01(\x03R\x0freinforceChance\"x\n" +
+	" \x01(\x03R\x0freinforceChance\"\x9e\x01\n" +
 	"\bProvince\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
 	"\aterrain\x18\x03 \x01(\rR\aterrain\x12\f\n" +
 	"\x01x\x18\x04 \x01(\x05R\x01x\x12\f\n" +
 	"\x01y\x18\x05 \x01(\x05R\x01y\x12\x10\n" +
-	"\x03hub\x18\x06 \x01(\bR\x03hub\">\n" +
+	"\x03hub\x18\x06 \x01(\bR\x03hub\x12\x14\n" +
+	"\x05state\x18\a \x01(\rR\x05state\x12\x0e\n" +
+	"\x02vp\x18\b \x01(\x05R\x02vp\"h\n" +
 	"\x04Edge\x12\f\n" +
 	"\x01a\x18\x01 \x01(\rR\x01a\x12\f\n" +
 	"\x01b\x18\x02 \x01(\rR\x01b\x12\x1a\n" +
-	"\bdistance\x18\x03 \x01(\x03R\bdistance\"/\n" +
+	"\bdistance\x18\x03 \x01(\x03R\bdistance\x12\x14\n" +
+	"\x05river\x18\x04 \x01(\rR\x05river\x12\x12\n" +
+	"\x04rail\x18\x05 \x01(\rR\x04rail\"\xa9\x01\n" +
+	"\x05State\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acapital\x18\x03 \x01(\rR\acapital\x12\x1a\n" +
+	"\bmanpower\x18\x04 \x01(\x03R\bmanpower\x12\x1c\n" +
+	"\tfactories\x18\x05 \x01(\x05R\tfactories\x12&\n" +
+	"\x0einfrastructure\x18\x06 \x01(\x05R\x0einfrastructure\"I\n" +
 	"\aFaction\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"u\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acapital\x18\x03 \x01(\rR\acapital\"u\n" +
 	"\fProvinceView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1e\n" +
 	"\n" +
@@ -2301,7 +2447,7 @@ func file_sandtable_v1_sandtable_proto_rawDescGZIP() []byte {
 }
 
 var file_sandtable_v1_sandtable_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_sandtable_v1_sandtable_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_sandtable_v1_sandtable_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_sandtable_v1_sandtable_proto_goTypes = []any{
 	(RemoveReason)(0),       // 0: sandtable.v1.RemoveReason
 	(CommandStatus)(0),      // 1: sandtable.v1.CommandStatus
@@ -2322,16 +2468,17 @@ var file_sandtable_v1_sandtable_proto_goTypes = []any{
 	(*UnitType)(nil),        // 16: sandtable.v1.UnitType
 	(*Province)(nil),        // 17: sandtable.v1.Province
 	(*Edge)(nil),            // 18: sandtable.v1.Edge
-	(*Faction)(nil),         // 19: sandtable.v1.Faction
-	(*ProvinceView)(nil),    // 20: sandtable.v1.ProvinceView
-	(*DivisionView)(nil),    // 21: sandtable.v1.DivisionView
-	(*Snapshot)(nil),        // 22: sandtable.v1.Snapshot
-	(*RemovedDivision)(nil), // 23: sandtable.v1.RemovedDivision
-	(*Delta)(nil),           // 24: sandtable.v1.Delta
-	(*CommandResult)(nil),   // 25: sandtable.v1.CommandResult
-	(*Player)(nil),          // 26: sandtable.v1.Player
-	(*MatchStatus)(nil),     // 27: sandtable.v1.MatchStatus
-	(*Error)(nil),           // 28: sandtable.v1.Error
+	(*State)(nil),           // 19: sandtable.v1.State
+	(*Faction)(nil),         // 20: sandtable.v1.Faction
+	(*ProvinceView)(nil),    // 21: sandtable.v1.ProvinceView
+	(*DivisionView)(nil),    // 22: sandtable.v1.DivisionView
+	(*Snapshot)(nil),        // 23: sandtable.v1.Snapshot
+	(*RemovedDivision)(nil), // 24: sandtable.v1.RemovedDivision
+	(*Delta)(nil),           // 25: sandtable.v1.Delta
+	(*CommandResult)(nil),   // 26: sandtable.v1.CommandResult
+	(*Player)(nil),          // 27: sandtable.v1.Player
+	(*MatchStatus)(nil),     // 28: sandtable.v1.MatchStatus
+	(*Error)(nil),           // 29: sandtable.v1.Error
 }
 var file_sandtable_v1_sandtable_proto_depIdxs = []int32{
 	6,  // 0: sandtable.v1.ClientMessage.hello:type_name -> sandtable.v1.Hello
@@ -2341,34 +2488,35 @@ var file_sandtable_v1_sandtable_proto_depIdxs = []int32{
 	11, // 4: sandtable.v1.ClientMessage.set_speed:type_name -> sandtable.v1.SetSpeed
 	8,  // 5: sandtable.v1.Command.move_division:type_name -> sandtable.v1.MoveDivision
 	13, // 6: sandtable.v1.ServerMessage.welcome:type_name -> sandtable.v1.Welcome
-	22, // 7: sandtable.v1.ServerMessage.snapshot:type_name -> sandtable.v1.Snapshot
-	24, // 8: sandtable.v1.ServerMessage.delta:type_name -> sandtable.v1.Delta
-	25, // 9: sandtable.v1.ServerMessage.command_result:type_name -> sandtable.v1.CommandResult
-	27, // 10: sandtable.v1.ServerMessage.match_status:type_name -> sandtable.v1.MatchStatus
-	28, // 11: sandtable.v1.ServerMessage.error:type_name -> sandtable.v1.Error
+	23, // 7: sandtable.v1.ServerMessage.snapshot:type_name -> sandtable.v1.Snapshot
+	25, // 8: sandtable.v1.ServerMessage.delta:type_name -> sandtable.v1.Delta
+	26, // 9: sandtable.v1.ServerMessage.command_result:type_name -> sandtable.v1.CommandResult
+	28, // 10: sandtable.v1.ServerMessage.match_status:type_name -> sandtable.v1.MatchStatus
+	29, // 11: sandtable.v1.ServerMessage.error:type_name -> sandtable.v1.Error
 	14, // 12: sandtable.v1.Welcome.static:type_name -> sandtable.v1.StaticData
-	27, // 13: sandtable.v1.Welcome.status:type_name -> sandtable.v1.MatchStatus
+	28, // 13: sandtable.v1.Welcome.status:type_name -> sandtable.v1.MatchStatus
 	15, // 14: sandtable.v1.StaticData.terrains:type_name -> sandtable.v1.Terrain
 	16, // 15: sandtable.v1.StaticData.unit_types:type_name -> sandtable.v1.UnitType
 	17, // 16: sandtable.v1.StaticData.provinces:type_name -> sandtable.v1.Province
 	18, // 17: sandtable.v1.StaticData.edges:type_name -> sandtable.v1.Edge
-	19, // 18: sandtable.v1.StaticData.factions:type_name -> sandtable.v1.Faction
-	20, // 19: sandtable.v1.Snapshot.provinces:type_name -> sandtable.v1.ProvinceView
-	21, // 20: sandtable.v1.Snapshot.divisions:type_name -> sandtable.v1.DivisionView
-	0,  // 21: sandtable.v1.RemovedDivision.reason:type_name -> sandtable.v1.RemoveReason
-	20, // 22: sandtable.v1.Delta.provinces:type_name -> sandtable.v1.ProvinceView
-	21, // 23: sandtable.v1.Delta.divisions:type_name -> sandtable.v1.DivisionView
-	23, // 24: sandtable.v1.Delta.removed:type_name -> sandtable.v1.RemovedDivision
-	1,  // 25: sandtable.v1.CommandResult.status:type_name -> sandtable.v1.CommandStatus
-	2,  // 26: sandtable.v1.CommandResult.reason:type_name -> sandtable.v1.RejectReason
-	3,  // 27: sandtable.v1.MatchStatus.phase:type_name -> sandtable.v1.MatchPhase
-	26, // 28: sandtable.v1.MatchStatus.players:type_name -> sandtable.v1.Player
-	4,  // 29: sandtable.v1.Error.code:type_name -> sandtable.v1.ErrorCode
-	30, // [30:30] is the sub-list for method output_type
-	30, // [30:30] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	20, // 18: sandtable.v1.StaticData.factions:type_name -> sandtable.v1.Faction
+	19, // 19: sandtable.v1.StaticData.states:type_name -> sandtable.v1.State
+	21, // 20: sandtable.v1.Snapshot.provinces:type_name -> sandtable.v1.ProvinceView
+	22, // 21: sandtable.v1.Snapshot.divisions:type_name -> sandtable.v1.DivisionView
+	0,  // 22: sandtable.v1.RemovedDivision.reason:type_name -> sandtable.v1.RemoveReason
+	21, // 23: sandtable.v1.Delta.provinces:type_name -> sandtable.v1.ProvinceView
+	22, // 24: sandtable.v1.Delta.divisions:type_name -> sandtable.v1.DivisionView
+	24, // 25: sandtable.v1.Delta.removed:type_name -> sandtable.v1.RemovedDivision
+	1,  // 26: sandtable.v1.CommandResult.status:type_name -> sandtable.v1.CommandStatus
+	2,  // 27: sandtable.v1.CommandResult.reason:type_name -> sandtable.v1.RejectReason
+	3,  // 28: sandtable.v1.MatchStatus.phase:type_name -> sandtable.v1.MatchPhase
+	27, // 29: sandtable.v1.MatchStatus.players:type_name -> sandtable.v1.Player
+	4,  // 30: sandtable.v1.Error.code:type_name -> sandtable.v1.ErrorCode
+	31, // [31:31] is the sub-list for method output_type
+	31, // [31:31] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_sandtable_v1_sandtable_proto_init() }
@@ -2400,7 +2548,7 @@ func file_sandtable_v1_sandtable_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sandtable_v1_sandtable_proto_rawDesc), len(file_sandtable_v1_sandtable_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

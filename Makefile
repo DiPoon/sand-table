@@ -11,7 +11,7 @@ race:
 
 # Time per tick and the costs outside the tick.
 bench:
-	cd server && go test ./internal/sim ./internal/view -run '^$$' -bench . -benchtime 200x
+	cd server && go test ./internal/sim ./internal/view ./internal/mapgen -run '^$$' -bench . -benchtime 200x
 
 # Server binaries into bin/, and the web client into client/dist (served by sandtable-server at /).
 build: client

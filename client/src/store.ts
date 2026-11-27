@@ -45,19 +45,47 @@ export interface Province {
   terrain: number;
   x: number;
   y: number;
-  hub: boolean;
+  hub: boolean; // supply hub
+  state: number; // state ID, 0 = none
+  vp: number; // victory points
 }
+
+export const RIVER_NONE = 0;
+export const RIVER_SMALL = 1;
+export const RIVER_LARGE = 2;
 
 export interface Edge {
   a: number;
   b: number;
   distance: number; // km
+  river: number; // along the shared border: RIVER_NONE, RIVER_SMALL or RIVER_LARGE
+  rail: number; // railway level, 0 = none
+}
+
+/** A group of provinces with the industry and population of an area. */
+export interface MapState {
+  id: number; // index + 1; 0 means none
+  key: string;
+  name: string;
+  capital: number; // province ID
+  manpower: number;
+  factories: number;
+  infrastructure: number;
 }
 
 export interface Faction {
   id: number; // index + 1; 0 means none
   key: string;
   name: string;
+  capital: number; // province ID, -1 = none
+}
+
+/**
+ * One number for the edge a-b of a map with n provinces, the same either way
+ * round. It is exact while n² < 2⁵³; the loader allows at most 2²⁴ provinces.
+ */
+export function edgeKey(a: number, b: number, n: number): number {
+  return a < b ? a * n + b : b * n + a;
 }
 
 export class StaticInfo {
@@ -67,7 +95,9 @@ export class StaticInfo {
   readonly provinces: Province[];
   readonly edges: Edge[];
   readonly factions: Faction[];
-  private readonly dist = new Map<number, number>();
+  readonly states: MapState[];
+  private readonly edgeIndex = new Map<number, Edge>();
+  private readonly capitals: (Faction | undefined)[] = []; // by province
 
   constructor(s: StaticData) {
     this.dataHash = Array.from(s.dataHash, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -99,21 +129,46 @@ export class StaticInfo {
       x: p.x,
       y: p.y,
       hub: p.hub,
+      state: p.state,
+      vp: p.vp,
     }));
-    this.edges = s.edges.map((e) => ({ a: e.a, b: e.b, distance: Number(e.distance) }));
-    this.factions = s.factions.map((f, i) => ({ id: i + 1, key: f.key, name: f.name }));
+    this.edges = s.edges.map((e) => ({ a: e.a, b: e.b, distance: Number(e.distance), river: e.river, rail: e.rail }));
+    // The wire carries the capital as province ID + 1, so that a missing field means none.
+    this.factions = s.factions.map((f, i) => ({ id: i + 1, key: f.key, name: f.name, capital: f.capital - 1 }));
+    this.states = s.states.map((st, i) => ({
+      id: i + 1,
+      key: st.key,
+      name: st.name,
+      capital: st.capital,
+      manpower: Number(st.manpower),
+      factories: st.factories,
+      infrastructure: st.infrastructure,
+    }));
     for (const e of this.edges) {
-      this.dist.set(this.edgeKey(e.a, e.b), e.distance);
+      this.edgeIndex.set(edgeKey(e.a, e.b, this.provinces.length), e);
+    }
+    for (const f of this.factions) {
+      if (f.capital >= 0) this.capitals[f.capital] = f;
     }
   }
 
-  private edgeKey(a: number, b: number): number {
-    return a < b ? a * 0x100000 + b : b * 0x100000 + a;
+  /** The edge between two adjacent provinces, either way round. */
+  edge(a: number, b: number): Edge | undefined {
+    return this.edgeIndex.get(edgeKey(a, b, this.provinces.length));
+  }
+
+  state(id: number): MapState | undefined {
+    return id >= 1 ? this.states[id - 1] : undefined;
+  }
+
+  /** The faction whose capital this province is, if any. Called for every province on every frame. */
+  capitalOf(province: number): Faction | undefined {
+    return this.capitals[province];
   }
 
   /** Distance in km between two adjacent provinces, or undefined if they are not adjacent. */
   distance(a: number, b: number): number | undefined {
-    return this.dist.get(this.edgeKey(a, b));
+    return this.edge(a, b)?.distance;
   }
 
   /** Cost of the edge a→b as the server computes it: distance × move_cost of b. */

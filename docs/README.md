@@ -9,13 +9,17 @@
 ```sh
 make test          # 서버 전체 테스트 (결정론, 규칙, 영속성, end-to-end)
 make bench         # 틱당 소요 시간 벤치마크
-make build         # 웹 클라이언트(client/dist) + bin/ 에 실행 파일 3개. npm이 필요하다
+make build         # 웹 클라이언트(client/dist) + bin/ 에 실행 파일 4개. npm이 필요하다
 
 cd server
 ../bin/sandtable-server                       # http://127.0.0.1:8080, 상태는 server/var/default/
+../bin/sandtable-server -scenario generated -state-dir var/generated   # 생성된 큰 맵으로. 샘플 맵의 방과 상태 디렉토리를 나눈다
 ../bin/sandtable-cli -faction azure           # 터미널 클라이언트. crimson도 같은 방식
 ../bin/sandtable-replay -dir var/default      # 명령 로그를 틱 0부터 재생해 해시와 스냅샷 검증
+../bin/sandtable-mapgen -seed 1               # data/maps, data/scenarios에 generated.yaml을 만든다
 ```
+
+맵 생성기 옵션: `-seed`(같은 시드면 같은 파일), `-land`(육지 프로빈스 수, 기본 800), `-factions`(기본 2), `-spacing`(프로빈스 간격 km, 기본 40), `-name`(파일 이름: 소문자·숫자·`-`·`_`), `-data`(기본 `../data`). 보급 허브는 `-data`의 `rules.yaml`에서 읽은 이동 비용과 보급 거리에 맞춰 놓으므로, 규칙을 바꾸면 맵도 다시 만든다 (`TestCommittedMapIsSupplied`가 잡는다). 생성기가 쓰지 않은 파일(샘플 맵처럼 손으로 쓴 것)은 덮어쓰지 않는다. 생성 결과는 커밋한다. 이미 그 맵으로 진행 중인 방은 데이터가 달라지면 복구를 거부하므로, 다시 만들었다면 그 방의 상태 디렉토리를 옮긴다. 방의 상태는 `-state-dir` 아래 방 이름의 디렉토리에 있다 (기본 `server/var/default`, 위 예시의 생성 맵은 `server/var/generated/default`).
 
 브라우저로 `http://127.0.0.1:8080`에 접속해 이름과 진영을 고르면 참가한다. 서버는 `-web`(기본 `../client/dist`) 디렉토리가 있으면 `/`에서 웹 클라이언트를 제공한다. 탭마다 다른 진영을 잡을 수 있고, 새로고침하면 같은 진영으로 다시 들어온다.
 
@@ -58,6 +62,7 @@ SANDTABLE_WS=ws://127.0.0.1:8080/ws npm test   # 실행 중인 서버(새 방)�
 | [rules.md](rules.md) | 게임 규칙 — 이동, 전투, 후퇴, 점령, 보급, 시야 |
 | [persistence.md](persistence.md) | 영속성 — 명령 로그, 해시, 스냅샷, 복구, 리플레이 |
 | [client-plan.md](client-plan.md) | 2단계 — 웹 뷰어 클라이언트 (구현 완료, 계획과 달라진 점은 문서 끝) |
+| [land-war-plan.md](land-war-plan.md) | 3단계 계획 — 한 판이 성립하는 지상전 (진행 중) |
 
 ## 확정된 결정
 
@@ -81,10 +86,12 @@ sandtable/
 │   ├── cmd/
 │   │   ├── sandtable-server/  # 서버
 │   │   ├── sandtable-cli/     # 더미 CLI 클라이언트
-│   │   └── sandtable-replay/  # 명령 로그 리플레이 검증
+│   │   ├── sandtable-replay/  # 명령 로그 리플레이 검증
+│   │   └── sandtable-mapgen/  # 맵·시나리오 생성기
 │   └── internal/
 │       ├── sim/               # 결정론 코어: 상태, Step, 규칙, 해시, 정규 인코딩
 │       ├── gamedata/          # data/ YAML 로드와 검증
+│       ├── mapgen/            # 맵 생성 (지형, 강, 주, 진영, 승점, 철도). 시뮬레이션 밖이라 부동소수점을 쓴다
 │       ├── view/              # 시야 필터, 플레이어 뷰, 델타
 │       ├── match/             # 방: 틱 루프, 명령 큐, 세션
 │       ├── persist/           # 명령 로그, 스냅샷, 복구
@@ -106,7 +113,7 @@ sandtable/
 └── docs/
 ```
 
-의존 방향은 한쪽으로만 흐른다: `sim` ← `gamedata`·`view`·`persist` ← `match` ← `transport` ← `cmd`.
+의존 방향은 한쪽으로만 흐른다: `sim` ← `gamedata`·`view`·`persist` ← `match` ← `transport` ← `cmd`. `mapgen`은 내부 패키지를 쓰지 않고 YAML만 만든다 (테스트만 결과를 `gamedata`로 읽어 시뮬레이션을 돌려 본다).
 `sim`은 표준 라이브러리 일부만 import하고, 네트워크·Protobuf·YAML을 모른다.
 
 ## 의존성
@@ -116,6 +123,7 @@ sandtable/
 | WebSocket | `github.com/coder/websocket` |
 | Protobuf 런타임 | `google.golang.org/protobuf` |
 | YAML | `go.yaml.in/yaml/v3` |
+| Delaunay 삼각분할 (맵 생성기만) | `github.com/fogleman/delaunay`. 클라이언트의 `d3-delaunay`와 같은 delaunator 알고리즘 |
 | 코드 생성 (개발 시에만) | `buf` + `protoc-gen-go` + `protoc-gen-es`(client의 npm 패키지). 생성물을 커밋하므로 빌드에는 필요 없다 |
 
 웹 클라이언트 (`client/package.json`):

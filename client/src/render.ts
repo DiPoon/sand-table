@@ -3,7 +3,7 @@
 // their size at any zoom.
 
 import { type Camera, type MapGeometry, type Point, progressRatio, shownCounters, towards } from "./geometry";
-import type { Division, StaticInfo, Store } from "./store";
+import { type Division, RIVER_LARGE, RIVER_NONE, type StaticInfo, type Store } from "./store";
 
 // ---- Colours ----
 
@@ -23,6 +23,29 @@ const FACTION_COLORS = [
 ];
 const NEUTRAL = "#b5ad9c";
 const WATER = "#a7cbe0";
+const SEA = "#8fb6d3";
+const RIVER = "#3b7cc2";
+const RAIL = "#463d35";
+
+/** What the cells are coloured by. */
+export type MapMode = "political" | "terrain" | "states";
+
+// Terrain mode colours, by terrain key. Keys not listed get NEUTRAL.
+const TERRAIN_COLORS: Record<string, string> = {
+  plains: "#b9cf8a",
+  forest: "#6f9a5c",
+  hills: "#c2ab7e",
+  mountain: "#958a7e",
+  marsh: "#86a088",
+  urban: "#a9a5a0",
+};
+
+// States get colours that differ from their neighbours' often enough: a
+// golden-angle walk around the hue circle.
+function stateColor(id: number): string {
+  const hue = (id * 137.508) % 360;
+  return `hsl(${hue.toFixed(1)}, 38%, ${id % 2 === 0 ? 66 : 74}%)`;
+}
 const BACKGROUND = "#1d2228";
 const INK = "#1b1d21";
 
@@ -97,6 +120,24 @@ const TERRAIN_PATTERNS: Record<string, PatternPainter | null> = {
     c.fillRect(15, 14, 4, 4);
     c.fillRect(21, 15, 3, 3);
   },
+  sea: null,
+  marsh(c) {
+    c.strokeStyle = "rgba(40, 70, 50, 0.35)";
+    c.lineWidth = 1;
+    for (const [x, y] of [
+      [5, 8],
+      [16, 19],
+    ]) {
+      c.beginPath();
+      c.moveTo(x - 4, y);
+      c.lineTo(x + 4, y);
+      c.moveTo(x - 2, y - 3);
+      c.lineTo(x - 2, y);
+      c.moveTo(x + 1, y - 4);
+      c.lineTo(x + 1, y);
+      c.stroke();
+    }
+  },
   lake(c, n) {
     c.strokeStyle = "rgba(30, 80, 130, 0.35)";
     c.lineWidth = 1.2;
@@ -146,6 +187,7 @@ export interface Highlight {
   selected: ReadonlySet<number>;
   /** Destinations of orders sent but not yet in the view: acknowledged with a ring, not a path. */
   pending: readonly number[];
+  mode: MapMode;
 }
 
 /** What is under a screen point: a division counter, or the "+N" box of a crowded province. */
@@ -170,6 +212,8 @@ export class Renderer {
   private st: StaticInfo | null = null;
   private terrainPatterns: (CanvasPattern | null)[] = [];
   private fog: CanvasPattern | null = null;
+  /** Median distance between neighbouring provinces, in world units. */
+  private typical = 1;
   /** Counters drawn in the last frame, bottom to top, for hit testing. */
   private boxes: Box[] = [];
 
@@ -181,6 +225,8 @@ export class Renderer {
   setMap(geo: MapGeometry, st: StaticInfo) {
     this.geo = geo;
     this.st = st;
+    const sorted = [...geo.spacing].sort((a, b) => a - b);
+    this.typical = sorted[sorted.length >> 1] ?? 1;
     this.terrainPatterns = st.terrains.map((t) => {
       const p = TERRAIN_PATTERNS[t.key];
       return p ? makePattern(this.ctx, p, 24) : null;
@@ -226,32 +272,70 @@ export class Renderer {
     // Patterns are anchored to the map so that they pan with it.
     const anchor = new DOMMatrix().translateSelf(-cam.x * cam.scale, -cam.y * cam.scale);
 
-    // Cells: controller colour or water, then terrain pattern, then fog.
+    // Cells: by mode the controller, terrain or state colour, or water; then
+    // the terrain pattern; then the fog over land out of sight, lighter outside the political map.
+    // Cells are grouped by fill so that a thousand cells take a few dozen fills.
+    const fills = new Map<string, Path2D>();
+    const patterned = new Map<number, Path2D>();
+    const fogged = new Path2D();
+    const group = <K>(m: Map<K, Path2D>, k: K) => {
+      let p = m.get(k);
+      if (!p) m.set(k, (p = new Path2D()));
+      return p;
+    };
+    const margin = 4;
     geo.cells.forEach((poly, i) => {
+      if (poly.length === 0) return;
+      const pts = poly.map((p) => cam.toScreen(p));
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const p of pts) {
+        x0 = Math.min(x0, p.x);
+        y0 = Math.min(y0, p.y);
+        x1 = Math.max(x1, p.x);
+        y1 = Math.max(y1, p.y);
+      }
+      if (x1 < -margin || y1 < -margin || x0 > this.width + margin || y0 > this.height + margin) return;
       const prov = st.provinces[i];
       const terrain = st.terrains[prov.terrain];
       const view = store.provinces[i];
-      this.path(poly, cam);
-      c.fillStyle = terrain?.passable === false ? WATER : fillColor(view?.controller ?? 0);
-      c.fill();
-      const pat = this.terrainPatterns[prov.terrain];
-      if (pat) {
-        pat.setTransform(anchor);
-        c.fillStyle = pat;
-        c.fill();
-      }
-      if (view && !view.visible) {
-        c.fillStyle = "rgba(12, 16, 24, 0.42)";
-        c.fill();
-        if (this.fog) {
-          this.fog.setTransform(anchor);
-          c.fillStyle = this.fog;
-          c.fill();
-        }
+      let color: string;
+      if (terrain?.passable === false) color = terrain.key === "sea" ? SEA : WATER;
+      else if (hl.mode === "terrain") color = TERRAIN_COLORS[terrain?.key ?? ""] ?? NEUTRAL;
+      else if (hl.mode === "states") color = prov.state ? stateColor(prov.state) : NEUTRAL;
+      else color = fillColor(view?.controller ?? 0);
+      const targets = [group(fills, color)];
+      if (hl.mode !== "states" && this.terrainPatterns[prov.terrain]) targets.push(group(patterned, prov.terrain));
+      if (terrain?.passable !== false && view && !view.visible) targets.push(fogged);
+      for (const t of targets) {
+        pts.forEach((p, k) => (k === 0 ? t.moveTo(p.x, p.y) : t.lineTo(p.x, p.y)));
+        t.closePath();
       }
     });
+    for (const [color, path] of fills) {
+      c.fillStyle = color;
+      c.fill(path);
+    }
+    for (const [terrain, path] of patterned) {
+      const pat = this.terrainPatterns[terrain]!;
+      pat.setTransform(anchor);
+      c.fillStyle = pat;
+      c.fill(path);
+    }
+    c.fillStyle = hl.mode === "political" ? "rgba(12, 16, 24, 0.42)" : "rgba(12, 16, 24, 0.26)";
+    c.fill(fogged);
+    if (this.fog) {
+      this.fog.setTransform(anchor);
+      c.fillStyle = this.fog;
+      c.fill(fogged);
+    }
 
-    this.drawBorders(store, cam);
+    // Rivers lie on borders: the province and coast lines go under them, the
+    // state and front lines over them, so that a front along a river shows.
+    const borders = this.borderPaths(store, cam);
+    this.strokeFineBorders(borders);
+    this.drawRivers(cam);
+    this.strokeStrongBorders(borders, hl.mode);
+    this.drawRailways(cam, hl.mode);
 
     if (hl.hover >= 0 && hl.hover < geo.cells.length) {
       this.path(geo.cells[hl.hover], cam);
@@ -268,7 +352,8 @@ export class Renderer {
     }
 
     const battles = this.drawBattles(store, cam, now);
-    this.drawLabels(store, cam);
+    this.drawMarkers(cam);
+    this.drawLabels(store, cam, hl.mode);
     this.drawPending(cam, hl.pending);
     this.drawDivisions(store, cam, hl);
     return battles;
@@ -531,61 +616,204 @@ export class Renderer {
     c.fillText(`+${n}`, x + w / 2, y + h / 2 + 1);
   }
 
-  private drawBorders(store: Store, cam: Camera) {
-    const c = this.ctx;
+  private borderPaths(store: Store, cam: Camera): { thin: Path2D; state: Path2D; coast: Path2D; thick: Path2D } {
     const geo = this.geo!;
     const st = this.st!;
     const thin = new Path2D();
+    const state = new Path2D();
     const coast = new Path2D();
     const thick = new Path2D();
     const passable = (i: number) => st.terrains[st.provinces[i].terrain]?.passable !== false;
     for (const b of geo.borders) {
+      let target: Path2D;
+      if (b.q < 0) {
+        if (!passable(b.p)) continue; // the open sea at the edge of the map
+        target = coast;
+      } else if (passable(b.p) !== passable(b.q)) target = coast;
+      else if (!passable(b.p)) {
+        // Between two water cells: only a lake shore against the sea shows.
+        if (st.terrains[st.provinces[b.p].terrain]?.key === st.terrains[st.provinces[b.q].terrain]?.key) continue;
+        target = coast;
+      } else if (store.provinces[b.p]?.controller !== store.provinces[b.q]?.controller) target = thick;
+      else if (st.provinces[b.p].state !== st.provinces[b.q].state) target = state;
+      else target = thin;
       const a = cam.toScreen(b.a);
       const z = cam.toScreen(b.b);
-      let target: Path2D;
-      if (b.q < 0) target = coast;
-      else if (passable(b.p) !== passable(b.q)) target = coast;
-      else if (!passable(b.p)) target = thin;
-      else if (store.provinces[b.p]?.controller !== store.provinces[b.q]?.controller) target = thick;
-      else target = thin;
       target.moveTo(a.x, a.y);
       target.lineTo(z.x, z.y);
     }
-    c.lineCap = "round";
-    c.strokeStyle = "rgba(20, 20, 25, 0.28)";
-    c.lineWidth = 1;
-    c.stroke(thin);
-    c.strokeStyle = "rgba(25, 45, 70, 0.7)";
-    c.lineWidth = 1.5;
-    c.stroke(coast);
-    c.strokeStyle = INK;
-    c.lineWidth = 3;
-    c.stroke(thick);
+    return { thin, state, coast, thick };
   }
 
-  private drawLabels(store: Store, cam: Camera) {
+  private strokeFineBorders(b: { thin: Path2D; coast: Path2D }) {
+    const c = this.ctx;
+    c.lineCap = "round";
+    c.strokeStyle = "rgba(20, 20, 25, 0.22)";
+    c.lineWidth = 1;
+    c.stroke(b.thin);
+    c.strokeStyle = "rgba(25, 45, 70, 0.7)";
+    c.lineWidth = 1.5;
+    c.stroke(b.coast);
+  }
+
+  private strokeStrongBorders(b: { state: Path2D; thick: Path2D }, mode: MapMode) {
+    const c = this.ctx;
+    c.lineCap = "round";
+    c.strokeStyle = mode === "states" ? "rgba(20, 20, 25, 0.85)" : "rgba(20, 20, 25, 0.45)";
+    c.lineWidth = mode === "states" ? 2 : 1.3;
+    c.stroke(b.state);
+    c.strokeStyle = INK;
+    c.lineWidth = 3;
+    c.stroke(b.thick);
+  }
+
+  /** Rivers run along the borders of the two provinces they separate. */
+  private drawRivers(cam: Camera) {
+    const c = this.ctx;
+    const geo = this.geo!;
+    const st = this.st!;
+    const small = new Path2D();
+    const large = new Path2D();
+    for (const b of geo.borders) {
+      if (b.q < 0) continue;
+      const river = st.edge(b.p, b.q)?.river ?? RIVER_NONE;
+      if (river === RIVER_NONE) continue;
+      const target = river === RIVER_LARGE ? large : small;
+      const a = cam.toScreen(b.a);
+      const z = cam.toScreen(b.b);
+      target.moveTo(a.x, a.y);
+      target.lineTo(z.x, z.y);
+    }
+    const w = Math.max(1.2, Math.min(3, cam.scale * 1.6));
+    c.lineCap = "round";
+    c.strokeStyle = RIVER;
+    c.lineWidth = w;
+    c.stroke(small);
+    c.lineWidth = w * 1.8;
+    c.stroke(large);
+  }
+
+  /** Railways join the centres of the provinces they connect. */
+  private drawRailways(cam: Camera, mode: MapMode) {
+    const c = this.ctx;
+    const st = this.st!;
+    const geo = this.geo!;
+    const lines = [new Path2D(), new Path2D()];
+    for (const e of st.edges) {
+      if (e.rail <= 0) continue;
+      const a = cam.toScreen(geo.sites[e.a]);
+      const z = cam.toScreen(geo.sites[e.b]);
+      const path = lines[Math.min(1, e.rail - 1)];
+      path.moveTo(a.x, a.y);
+      path.lineTo(z.x, z.y);
+    }
+    c.save();
+    // Quiet on the political map and when zoomed out, where the network would hide the map.
+    const zoom = Math.max(0.35, Math.min(1, cam.scale));
+    c.globalAlpha = (mode === "political" ? 0.4 : 0.8) * (0.6 + 0.4 * zoom);
+    c.lineCap = "round";
+    c.strokeStyle = RAIL;
+    lines.forEach((path, level) => {
+      c.lineWidth = (level === 0 ? 1.6 : 2.6) * zoom;
+      c.stroke(path);
+    });
+    // Sleepers, once there is room to see them.
+    if (cam.scale > 1.2) {
+      c.strokeStyle = "rgba(255, 250, 240, 0.8)";
+      c.lineWidth = 1;
+      c.setLineDash([2, 5]);
+      lines.forEach((path) => c.stroke(path));
+      c.setLineDash([]);
+    }
+    c.restore();
+  }
+
+  /** Capitals, victory points and supply hubs, below the counters. */
+  private drawMarkers(cam: Camera) {
+    const c = this.ctx;
+    const geo = this.geo!;
+    const st = this.st!;
+    st.provinces.forEach((prov, i) => {
+      const capital = st.capitalOf(i);
+      if (!capital && prov.vp <= 0 && !prov.hub) return;
+      const cell = geo.spacing[i] * cam.scale;
+      const s = cam.toScreen(geo.sites[i]);
+      const y = s.y + cell * 0.3;
+      if (capital) {
+        drawStar(c, s.x, y, Math.max(5, Math.min(12, cell * 0.12)));
+      } else if (prov.vp > 0) {
+        const r = Math.max(2.5, Math.min(7, cell * 0.06));
+        c.beginPath();
+        c.rect(s.x - r, y - r, 2 * r, 2 * r);
+        c.fillStyle = "#ffffff";
+        c.fill();
+        c.lineWidth = 1.2;
+        c.strokeStyle = INK;
+        c.stroke();
+        if (cell >= 70) {
+          c.font = `700 ${Math.round(r * 1.6)}px system-ui, "Malgun Gothic", sans-serif`;
+          c.textAlign = "left";
+          c.textBaseline = "middle";
+          c.fillStyle = INK;
+          c.fillText(String(prov.vp), s.x + r + 3, y);
+        }
+      }
+      if (prov.hub && cell >= 24) {
+        const r = Math.max(3, Math.min(6, cell * 0.05));
+        const hx = s.x - cell * 0.22;
+        c.beginPath();
+        c.moveTo(hx, y - r);
+        c.lineTo(hx + r, y);
+        c.lineTo(hx, y + r);
+        c.lineTo(hx - r, y);
+        c.closePath();
+        c.fillStyle = "#2f6f4f";
+        c.fill();
+        c.lineWidth = 1;
+        c.strokeStyle = "#ffffff";
+        c.stroke();
+      }
+    });
+  }
+
+  private drawLabels(store: Store, cam: Camera, mode: MapMode) {
     const c = this.ctx;
     const geo = this.geo!;
     const st = this.st!;
     c.textAlign = "center";
     c.textBaseline = "middle";
+    c.lineJoin = "round";
+    // On the state map, state names until provinces are big enough to name.
+    const cell = this.typical * cam.scale;
+    if (mode === "states" && st.states.length > 0 && cell < 70) {
+      for (const state of st.states) {
+        const s = cam.toScreen(geo.sites[state.capital]);
+        c.font = `700 ${Math.round(Math.max(10, Math.min(16, cell * 0.45)))}px system-ui, "Malgun Gothic", sans-serif`;
+        c.lineWidth = 3;
+        c.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        c.strokeText(state.name || state.key, s.x, s.y);
+        c.fillStyle = INK;
+        c.fillText(state.name || state.key, s.x, s.y);
+      }
+      return;
+    }
     st.provinces.forEach((prov, i) => {
       const cell = geo.spacing[i] * cam.scale;
-      if (cell < 44) return;
+      const passable = st.terrains[prov.terrain]?.passable !== false;
+      const label = prov.name || (passable ? prov.key : "");
+      if (cell < 44 || !label) return;
       const s = cam.toScreen(geo.sites[i]);
       const y = s.y - cell * 0.3;
       const size = Math.round(Math.min(15, Math.max(10, cell / 9)));
       c.font = `600 ${size}px system-ui, "Malgun Gothic", sans-serif`;
-      const name = prov.name || prov.key;
+      const name = label;
       const w = c.measureText(name).width;
       if (w > cell * 0.95) return; // too crowded at this zoom
-      c.lineJoin = "round";
       c.lineWidth = 3;
       c.strokeStyle = "rgba(255, 255, 255, 0.75)";
       c.strokeText(name, s.x, y);
       c.fillStyle = store.provinces[i]?.visible === false ? "#2a2d33" : INK;
       c.fillText(name, s.x, y);
-      if (prov.hub) drawStar(c, s.x - w / 2 - size * 0.8, y, size * 0.55);
       // Terrain without a pattern is named in small letters instead.
       const t = st.terrains[prov.terrain];
       if (t && !(t.key in TERRAIN_PATTERNS) && cell >= 70) {

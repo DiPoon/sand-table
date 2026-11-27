@@ -124,7 +124,12 @@ export class InfoPanel {
     const tname = terrain ? terrain.name || terrain.key : "?";
     this.row(t, S.terrain, terrain?.passable === false ? `${tname} · ${S.impassable}` : tname);
     this.row(t, S.controller, ctl ? ctl.name || ctl.key : S.none);
-    this.row(t, S.hub, p.hub ? S.yes : S.no);
+    const state = st.state(p.state);
+    if (state) this.row(t, S.state, state.name || state.key);
+    if (p.vp > 0) this.row(t, S.victoryPoints, String(p.vp));
+    if (p.hub) this.row(t, S.supplyHub, S.yes);
+    const capital = st.capitalOf(id);
+    if (capital) el("p", "status-line", this.root, S.capitalOf(capital.name || capital.key));
     if (view && !view.visible) {
       el("p", "status-line muted", this.root, S.outOfSight);
       return; // nothing more is known about a province in the fog

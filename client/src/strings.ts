@@ -58,12 +58,19 @@ export const S = {
   },
   reconnecting: "서버와 연결이 끊겼습니다. 2초마다 다시 연결합니다…",
 
+  // Map modes
+  mapMode: "지도",
+  modes: { political: "정치", terrain: "지형", states: "주" } as Record<"political" | "terrain" | "states", string>,
+
   // Panels
   province: "프로빈스",
+  state: "주",
+  victoryPoints: "승점",
+  supplyHub: "보급 허브",
+  capitalOf: (faction: string) => `${faction}의 수도`,
   terrain: "지형",
   impassable: "통행 불가",
   controller: "통제",
-  hub: "거점",
   yes: "예",
   no: "아니요",
   none: "없음",

@@ -111,6 +111,8 @@ supply_effect = min_supply_effect + (1000 − min_supply_effect) × supply / 100
 | mountain | 2500 | 400 | 50 |
 | urban | 1200 | 300 | 60 |
 | lake | 통행 불가 | | |
+| marsh | 2000 | 100 | 50 |
+| sea | 통행 불가 | | |
 
 | 유닛 | `max_strength` | `max_org` | `attack` | `defense` | `speed` | `org_recovery` | `width` | `reinforce_chance` |
 |---|---|---|---|---|---|---|---|---|

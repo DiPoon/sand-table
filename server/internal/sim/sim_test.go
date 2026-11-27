@@ -137,6 +137,7 @@ func line(n, split int) *sim.World {
 	w.Terrains = []sim.Terrain{simtest.Plains}
 	w.UnitTypes = []sim.UnitType{simtest.Infantry}
 	w.Factions = []sim.Faction{{}, {Key: "a", Name: "A"}, {Key: "b", Name: "B"}}
+	w.Regions = []sim.Region{{Capital: sim.NoProvince}}
 	w.Provinces = make([]sim.Province, n)
 	w.InitControl = make([]sim.FactionID, n)
 	for i := 0; i < n; i++ {

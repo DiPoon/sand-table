@@ -23,3 +23,5 @@ terrain:
   - {id: mountain, name: Mountain, move_cost: 2500, defense_bonus: 400, combat_width: 50}
   - {id: urban,    name: Urban,    move_cost: 1200, defense_bonus: 300, combat_width: 60}
   - {id: lake,     name: Lake,     passable: false}
+  - {id: marsh,    name: Marsh,    move_cost: 2000, defense_bonus: 100, combat_width: 50}
+  - {id: sea,      name: Sea,      passable: false}
