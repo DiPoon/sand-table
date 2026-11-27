@@ -27,10 +27,9 @@ func Grid(width, height, factions, divisionsPerFaction int) *sim.World {
 	w.Terrains = []sim.Terrain{Plains}
 	w.UnitTypes = []sim.UnitType{Infantry}
 	w.Factions = make([]sim.Faction, factions+1)
-	w.Factions[0].Capital = sim.NoProvince
 	w.Regions = []sim.Region{{Capital: sim.NoProvince}} // the "none" entry; a grid has no states
 	for f := 1; f <= factions; f++ {
-		w.Factions[f] = sim.Faction{Key: fmt.Sprintf("f%d", f), Name: fmt.Sprintf("Faction %d", f), Capital: sim.NoProvince}
+		w.Factions[f] = sim.Faction{Key: fmt.Sprintf("f%d", f), Name: fmt.Sprintf("Faction %d", f)}
 	}
 	n := width * height
 	w.Provinces = make([]sim.Province, n)

@@ -96,9 +96,10 @@ type Region struct {
 }
 
 type Faction struct {
-	Key     string
-	Name    string
-	Capital ProvinceID // NoProvince if the scenario names none; 0 is a real province
+	Key        string
+	Name       string
+	HasCapital bool       // false in the zero value: a faction built in code has no capital
+	Capital    ProvinceID // valid only if HasCapital
 }
 
 type Rules struct {

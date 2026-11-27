@@ -450,14 +450,10 @@ func (m *Map) rivers() {
 	m.rng.Shuffle(len(sources), func(a, b int) { sources[a], sources[b] = sources[b], sources[a] })
 
 	flow := map[int]int{} // edge index → rivers through it
-	used := map[int]bool{}
 	want := max(3, m.Opt.Land/45)
 	for _, s := range sources {
 		if want == 0 {
 			break
-		}
-		if used[s] {
-			continue
 		}
 		var path []int // edges along the way
 		cur := s
@@ -491,7 +487,6 @@ func (m *Map) rivers() {
 		for _, e := range path {
 			flow[e]++
 		}
-		used[s] = true
 	}
 	for e, f := range flow {
 		if f >= 3 {

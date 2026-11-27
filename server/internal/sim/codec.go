@@ -265,6 +265,7 @@ func HashWorld(w *World) Hash {
 	for _, f := range w.Factions {
 		e.Str(f.Key)
 		e.Str(f.Name)
+		e.Bool(f.HasCapital)
 		e.I32(int32(f.Capital))
 	}
 	e.U32(uint32(len(w.InitControl)))

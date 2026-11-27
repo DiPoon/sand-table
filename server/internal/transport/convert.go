@@ -39,8 +39,11 @@ func staticToPB(w *sim.World) *pb.StaticData {
 			Manpower: r.Manpower, Factories: r.Factories, Infrastructure: r.Infrastructure})
 	}
 	for _, f := range w.Factions[1:] {
-		// ID + 1, so that a missing field (0) means "none" rather than province 0.
-		s.Factions = append(s.Factions, &pb.Faction{Key: f.Key, Name: f.Name, Capital: uint32(f.Capital + 1)})
+		pf := &pb.Faction{Key: f.Key, Name: f.Name}
+		if f.HasCapital {
+			pf.Capital = uint32(f.Capital) + 1 // ID + 1, so that a missing field (0) means none
+		}
+		s.Factions = append(s.Factions, pf)
 	}
 	return s
 }

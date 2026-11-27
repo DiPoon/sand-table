@@ -94,7 +94,7 @@ func TestStatesRiversRailwaysAndCapitals(t *testing.T) {
 		t.Fatal("railway must be on a-b both ways and nowhere else")
 	}
 	// Faction IDs follow key order: east is 1, west is 2.
-	if w.Factions[1].Key != "east" || w.Factions[1].Capital != d || w.Factions[2].Capital != a ||
+	if w.Factions[1].Key != "east" || !w.Factions[1].HasCapital || w.Factions[1].Capital != d || w.Factions[2].Capital != a ||
 		w.InitControl[c] != 1 || w.InitControl[b] != 2 || w.InitControl[id("x")] != sim.NoFaction {
 		t.Fatal("capitals or control from states")
 	}
@@ -115,6 +115,8 @@ func TestBadMapsAreRejected(t *testing.T) {
 		{"railway level", "  - [a, b, 1]", "  - [a, b, 0]", "level", false},
 		{"capital the faction does not hold", "{id: west, name: West, capital: a", "{id: west, name: West, capital: c", "capital", true},
 		{"state given to two factions", "states: [s2]}", "states: [s2, s1]}", "two factions", true},
+		{"state listed twice", "states: [s1]}", "states: [s1, s1]}", "listed twice", true},
+		{"capital in a lake", "{id: west, name: West, capital: a, states: [s1]}", "{id: west, name: West, capital: x, provinces: [x], states: [s1]}", "passable", true},
 	} {
 		m, s := baseMap, baseScenario
 		if tc.scenario {

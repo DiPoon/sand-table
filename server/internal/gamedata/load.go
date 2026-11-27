@@ -355,16 +355,19 @@ func Load(dir, scenario string) (*sim.World, error) {
 	}
 	w.Factions = make([]sim.Faction, len(keys)+1)
 	w.InitControl = make([]sim.FactionID, len(w.Provinces))
-	w.Factions[0].Capital = sim.NoProvince
 	for _, f := range sf.Factions {
 		id := sim.FactionID(facIdx[f.ID] + 1)
-		w.Factions[id] = sim.Faction{Key: f.ID, Name: f.Name, Capital: sim.NoProvince}
+		w.Factions[id] = sim.Faction{Key: f.ID, Name: f.Name}
 		assign := func(pk string) error {
 			p, ok := provIdx[pk]
 			if !ok {
 				return fmt.Errorf("faction %q: unknown province %q", f.ID, pk)
 			}
-			if w.InitControl[p] != sim.NoFaction {
+			switch w.InitControl[p] {
+			case sim.NoFaction:
+			case id:
+				return fmt.Errorf("faction %q: province %q is listed twice (in provinces or in two of its states)", f.ID, pk)
+			default:
 				return fmt.Errorf("province %q is assigned to two factions", pk)
 			}
 			w.InitControl[p] = id
@@ -391,7 +394,10 @@ func Load(dir, scenario string) (*sim.World, error) {
 			if !ok || w.InitControl[p] != id {
 				return nil, fmt.Errorf("faction %q: capital %q is not a province the faction controls", f.ID, f.Capital)
 			}
-			w.Factions[id].Capital = sim.ProvinceID(p)
+			if !w.Terrains[w.Provinces[p].Terrain].Passable {
+				return nil, fmt.Errorf("faction %q: capital %q must be passable", f.ID, f.Capital)
+			}
+			w.Factions[id].HasCapital, w.Factions[id].Capital = true, sim.ProvinceID(p)
 		}
 	}
 	for n, d := range sf.Divisions {

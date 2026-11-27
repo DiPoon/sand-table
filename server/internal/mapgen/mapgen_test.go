@@ -62,6 +62,9 @@ func connected(w *sim.World, in func(sim.ProvinceID) bool) bool {
 			}
 		}
 	}
+	if total == 0 {
+		return true // nothing to connect; callers check sizes separately
+	}
 	seen := map[sim.ProvinceID]bool{start: true}
 	for queue := []sim.ProvinceID{start}; len(queue) > 0; queue = queue[1:] {
 		for _, e := range w.Provinces[queue[0]].Adj {
@@ -109,8 +112,8 @@ func TestGeneratedMapIsPlayable(t *testing.T) {
 				}
 			}
 		}
-		if land < opt.Land*9/10 && opt.Land > 0 {
-			t.Errorf("%d land provinces, asked for %d", land, opt.Land)
+		if land < m.Opt.Land*9/10 {
+			t.Errorf("%d land provinces, asked for %d", land, m.Opt.Land)
 		}
 		if !connected(w, passable) {
 			t.Fatal("the land is not one piece")
@@ -130,7 +133,7 @@ func TestGeneratedMapIsPlayable(t *testing.T) {
 			if share := float64(n) / float64(land); share < 0.5/float64(nf) || share > 1.6/float64(nf) {
 				t.Errorf("faction %d holds %.0f%% of the land", f, share*100)
 			}
-			if c := w.Factions[f].Capital; c == sim.NoProvince || w.Provinces[c].VP < 10 || !w.Provinces[c].Hub {
+			if c := w.Factions[f].Capital; !w.Factions[f].HasCapital || w.Provinces[c].VP < 10 || !w.Provinces[c].Hub {
 				t.Errorf("faction %d: capital missing, small or without a hub", f)
 			}
 		}
