@@ -19,8 +19,13 @@ func main() {
 	flag.Float64Var(&o.Spacing, "spacing", 40, "km between neighbouring province centres")
 	dir := flag.String("data", "../data", "data directory")
 	flag.Parse()
+	var err error
 
-	m, err := mapgen.Generate(o)
+	var m *mapgen.Map
+	o.Rules, err = mapgen.ReadRules(*dir)
+	if err == nil {
+		m, err = mapgen.Generate(o)
+	}
 	if err == nil {
 		err = m.Write(*dir)
 	}

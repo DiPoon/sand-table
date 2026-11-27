@@ -19,7 +19,7 @@ cd server
 ../bin/sandtable-mapgen -seed 1               # data/maps, data/scenarios에 generated.yaml을 만든다
 ```
 
-맵 생성기 옵션: `-seed`(같은 시드면 같은 파일), `-land`(육지 프로빈스 수, 기본 800), `-factions`(기본 2), `-spacing`(프로빈스 간격 km, 기본 40), `-name`(파일 이름). 생성 결과는 커밋한다. 이미 그 맵으로 진행 중인 방은 데이터가 달라지면 복구를 거부하므로, 다시 만들었다면 그 방의 상태 디렉토리를 옮긴다. 방의 상태는 `-state-dir` 아래 방 이름의 디렉토리에 있다 (기본 `server/var/default`, 위 예시의 생성 맵은 `server/var/generated/default`).
+맵 생성기 옵션: `-seed`(같은 시드면 같은 파일), `-land`(육지 프로빈스 수, 기본 800), `-factions`(기본 2), `-spacing`(프로빈스 간격 km, 기본 40), `-name`(파일 이름: 소문자·숫자·`-`·`_`), `-data`(기본 `../data`). 보급 허브는 `-data`의 `rules.yaml`에서 읽은 이동 비용과 보급 거리에 맞춰 놓으므로, 규칙을 바꾸면 맵도 다시 만든다 (`TestCommittedMapIsSupplied`가 잡는다). 생성기가 쓰지 않은 파일(샘플 맵처럼 손으로 쓴 것)은 덮어쓰지 않는다. 생성 결과는 커밋한다. 이미 그 맵으로 진행 중인 방은 데이터가 달라지면 복구를 거부하므로, 다시 만들었다면 그 방의 상태 디렉토리를 옮긴다. 방의 상태는 `-state-dir` 아래 방 이름의 디렉토리에 있다 (기본 `server/var/default`, 위 예시의 생성 맵은 `server/var/generated/default`).
 
 브라우저로 `http://127.0.0.1:8080`에 접속해 이름과 진영을 고르면 참가한다. 서버는 `-web`(기본 `../client/dist`) 디렉토리가 있으면 `/`에서 웹 클라이언트를 제공한다. 탭마다 다른 진영을 잡을 수 있고, 새로고침하면 같은 진영으로 다시 들어온다.
 

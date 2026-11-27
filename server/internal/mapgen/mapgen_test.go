@@ -12,16 +12,27 @@ import (
 	"sandtable/server/internal/view"
 )
 
-func TestSameSeedSameFiles(t *testing.T) {
-	a, err := Generate(Options{Seed: 7, Land: 300})
+// withRules fills in the rules of the real data directory.
+func withRules(t testing.TB, o Options) Options {
+	t.Helper()
+	r, err := ReadRules("../../../data")
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, _ := Generate(Options{Seed: 7, Land: 300})
+	o.Rules = r
+	return o
+}
+
+func TestSameSeedSameFiles(t *testing.T) {
+	a, err := Generate(withRules(t, Options{Seed: 7, Land: 300}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := Generate(withRules(t, Options{Seed: 7, Land: 300}))
 	if !bytes.Equal(a.MapYAML(), b.MapYAML()) || !bytes.Equal(a.ScenarioYAML(), b.ScenarioYAML()) {
 		t.Fatal("the same seed gave different files")
 	}
-	c, _ := Generate(Options{Seed: 8, Land: 300})
+	c, _ := Generate(withRules(t, Options{Seed: 8, Land: 300}))
 	if bytes.Equal(a.MapYAML(), c.MapYAML()) {
 		t.Fatal("a different seed gave the same map")
 	}
@@ -79,7 +90,7 @@ func connected(w *sim.World, in func(sim.ProvinceID) bool) bool {
 
 func TestGeneratedMapIsPlayable(t *testing.T) {
 	for _, opt := range []Options{{Seed: 1}, {Seed: 2, Land: 300, Factions: 3}} {
-		m, err := Generate(opt)
+		m, err := Generate(withRules(t, opt))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -162,7 +173,7 @@ func TestGeneratedMapIsPlayable(t *testing.T) {
 
 // One tick of the simulation, and the views of every faction, on the default generated map.
 func BenchmarkTickOnGeneratedMap(b *testing.B) {
-	m, err := Generate(Options{Seed: 1})
+	m, err := Generate(withRules(b, Options{Seed: 1}))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -181,5 +192,70 @@ func BenchmarkTickOnGeneratedMap(b *testing.B) {
 			cur := view.Build(w, s, sim.FactionID(f))
 			_ = view.Diff(cur, cur, res.Deaths)
 		}
+	}
+}
+
+// The committed generated map, with the rules as they are now, supplies every
+// land province of its controller from the start. Hubs are placed from the
+// rules; this catches a rule change that was not followed by regenerating.
+func TestCommittedMapIsSupplied(t *testing.T) {
+	w, err := gamedata.Load("../../../data", "generated")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := sim.NewEngine(w)
+	s := e.NewState(1)
+	worst := int32(1000)
+	for p := range w.Provinces {
+		f := w.InitControl[p]
+		if f == sim.NoFaction {
+			continue
+		}
+		lv := e.SupplyLevel(s, f, sim.ProvinceID(p))
+		if lv <= 0 {
+			t.Errorf("%s has no supply for its controller at the start; regenerate the map after changing rules.yaml", w.Provinces[p].Key)
+		}
+		worst = min(worst, lv)
+	}
+	t.Logf("lowest supply at the start: %d‰", worst)
+}
+
+func TestNamesAndRules(t *testing.T) {
+	for _, name := range []string{"../x", "Sample", "a/b", ""} {
+		if name == "" {
+			continue // the default name
+		}
+		if _, err := Generate(withRules(t, Options{Seed: 1, Land: 60, Name: name})); err == nil {
+			t.Errorf("name %q was accepted", name)
+		}
+	}
+	if _, err := Generate(Options{Seed: 1, Land: 60}); err == nil {
+		t.Error("generating without rules worked")
+	}
+}
+
+func TestWriteKeepsHandWrittenFiles(t *testing.T) {
+	m, err := Generate(withRules(t, Options{Seed: 1, Land: 60, Name: "mine"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A data directory without maps/ and scenarios/ yet.
+	dir := t.TempDir()
+	if err := m.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	// Writing again over its own files is fine.
+	if err := m.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	// A hand-written scenario of that name stops it, before the map is touched.
+	hand := []byte("map: mine\nfactions: []\n")
+	os.WriteFile(filepath.Join(dir, "scenarios", "mine.yaml"), hand, 0o644)
+	os.WriteFile(filepath.Join(dir, "maps", "mine.yaml"), []byte(generatedMark+" earlier\n"), 0o644)
+	if err := m.Write(dir); err == nil {
+		t.Fatal("overwrote a hand-written scenario")
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "maps", "mine.yaml")); string(got) != generatedMark+" earlier\n" {
+		t.Fatal("wrote the map before refusing the scenario")
 	}
 }

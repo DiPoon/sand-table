@@ -125,7 +125,7 @@ export class InfoPanel {
     this.row(t, S.terrain, terrain?.passable === false ? `${tname} · ${S.impassable}` : tname);
     this.row(t, S.controller, ctl ? ctl.name || ctl.key : S.none);
     const state = st.state(p.state);
-    if (state) this.row(t, S.state, state.name);
+    if (state) this.row(t, S.state, state.name || state.key);
     if (p.vp > 0) this.row(t, S.victoryPoints, String(p.vp));
     if (p.hub) this.row(t, S.supplyHub, S.yes);
     const capital = st.capitalOf(id);

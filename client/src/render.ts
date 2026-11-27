@@ -305,7 +305,7 @@ export class Renderer {
       else color = fillColor(view?.controller ?? 0);
       const targets = [group(fills, color)];
       if (hl.mode !== "states" && this.terrainPatterns[prov.terrain]) targets.push(group(patterned, prov.terrain));
-      if (hl.mode === "political" && terrain?.passable !== false && view && !view.visible) targets.push(fogged);
+      if (terrain?.passable !== false && view && !view.visible) targets.push(fogged);
       for (const t of targets) {
         pts.forEach((p, k) => (k === 0 ? t.moveTo(p.x, p.y) : t.lineTo(p.x, p.y)));
         t.closePath();
@@ -321,7 +321,7 @@ export class Renderer {
       c.fillStyle = pat;
       c.fill(path);
     }
-    c.fillStyle = "rgba(12, 16, 24, 0.42)";
+    c.fillStyle = hl.mode === "political" ? "rgba(12, 16, 24, 0.42)" : "rgba(12, 16, 24, 0.26)";
     c.fill(fogged);
     if (this.fog) {
       this.fog.setTransform(anchor);
@@ -329,8 +329,12 @@ export class Renderer {
       c.fill(fogged);
     }
 
-    this.drawBorders(store, cam, hl.mode);
+    // Rivers lie on borders: the province and coast lines go under them, the
+    // state and front lines over them, so that a front along a river shows.
+    const borders = this.borderPaths(store, cam);
+    this.strokeFineBorders(borders);
     this.drawRivers(cam);
+    this.strokeStrongBorders(borders, hl.mode);
     this.drawRailways(cam, hl.mode);
 
     if (hl.hover >= 0 && hl.hover < geo.cells.length) {
@@ -612,8 +616,7 @@ export class Renderer {
     c.fillText(`+${n}`, x + w / 2, y + h / 2 + 1);
   }
 
-  private drawBorders(store: Store, cam: Camera, mode: MapMode) {
-    const c = this.ctx;
+  private borderPaths(store: Store, cam: Camera): { thin: Path2D; state: Path2D; coast: Path2D; thick: Path2D } {
     const geo = this.geo!;
     const st = this.st!;
     const thin = new Path2D();
@@ -639,19 +642,29 @@ export class Renderer {
       target.moveTo(a.x, a.y);
       target.lineTo(z.x, z.y);
     }
+    return { thin, state, coast, thick };
+  }
+
+  private strokeFineBorders(b: { thin: Path2D; coast: Path2D }) {
+    const c = this.ctx;
     c.lineCap = "round";
     c.strokeStyle = "rgba(20, 20, 25, 0.22)";
     c.lineWidth = 1;
-    c.stroke(thin);
-    c.strokeStyle = mode === "states" ? "rgba(20, 20, 25, 0.85)" : "rgba(20, 20, 25, 0.45)";
-    c.lineWidth = mode === "states" ? 2 : 1.3;
-    c.stroke(state);
+    c.stroke(b.thin);
     c.strokeStyle = "rgba(25, 45, 70, 0.7)";
     c.lineWidth = 1.5;
-    c.stroke(coast);
+    c.stroke(b.coast);
+  }
+
+  private strokeStrongBorders(b: { state: Path2D; thick: Path2D }, mode: MapMode) {
+    const c = this.ctx;
+    c.lineCap = "round";
+    c.strokeStyle = mode === "states" ? "rgba(20, 20, 25, 0.85)" : "rgba(20, 20, 25, 0.45)";
+    c.lineWidth = mode === "states" ? 2 : 1.3;
+    c.stroke(b.state);
     c.strokeStyle = INK;
     c.lineWidth = 3;
-    c.stroke(thick);
+    c.stroke(b.thick);
   }
 
   /** Rivers run along the borders of the two provinces they separate. */
@@ -778,26 +791,28 @@ export class Renderer {
         c.font = `700 ${Math.round(Math.max(10, Math.min(16, cell * 0.45)))}px system-ui, "Malgun Gothic", sans-serif`;
         c.lineWidth = 3;
         c.strokeStyle = "rgba(255, 255, 255, 0.8)";
-        c.strokeText(state.name, s.x, s.y);
+        c.strokeText(state.name || state.key, s.x, s.y);
         c.fillStyle = INK;
-        c.fillText(state.name, s.x, s.y);
+        c.fillText(state.name || state.key, s.x, s.y);
       }
       return;
     }
     st.provinces.forEach((prov, i) => {
       const cell = geo.spacing[i] * cam.scale;
-      if (cell < 44 || !prov.name) return;
+      const passable = st.terrains[prov.terrain]?.passable !== false;
+      const label = prov.name || (passable ? prov.key : "");
+      if (cell < 44 || !label) return;
       const s = cam.toScreen(geo.sites[i]);
       const y = s.y - cell * 0.3;
       const size = Math.round(Math.min(15, Math.max(10, cell / 9)));
       c.font = `600 ${size}px system-ui, "Malgun Gothic", sans-serif`;
-      const name = prov.name;
+      const name = label;
       const w = c.measureText(name).width;
       if (w > cell * 0.95) return; // too crowded at this zoom
       c.lineWidth = 3;
       c.strokeStyle = "rgba(255, 255, 255, 0.75)";
       c.strokeText(name, s.x, y);
-      c.fillStyle = store.provinces[i]?.visible === false && mode === "political" ? "#2a2d33" : INK;
+      c.fillStyle = store.provinces[i]?.visible === false ? "#2a2d33" : INK;
       c.fillText(name, s.x, y);
       // Terrain without a pattern is named in small letters instead.
       const t = st.terrains[prov.terrain];

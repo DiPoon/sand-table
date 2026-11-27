@@ -15,19 +15,76 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"os"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 
 	"github.com/fogleman/delaunay"
+	"go.yaml.in/yaml/v3"
 )
 
 type Options struct {
 	Seed     uint64
-	Name     string  // file name under data/maps and data/scenarios
+	Name     string  // file name under data/maps and data/scenarios: lower case letters, digits, - and _
 	Land     int     // target number of land provinces
 	Factions int     // number of factions
 	Spacing  float64 // km between neighbouring province centres
+	Rules    Rules   // from data/rules.yaml, see ReadRules
 }
+
+// Rules are the numbers of data/rules.yaml that decide where supply hubs go,
+// read from the file rather than copied, so that the map follows the rules.
+type Rules struct {
+	MoveCost       map[string]float64 // per passable terrain key; plains = 1
+	SupplyMaxRange float64            // km plains-equivalent at which supply reaches zero
+}
+
+// terrainsUsed are the terrain keys the generator gives land provinces.
+var terrainsUsed = []string{"plains", "forest", "hills", "mountain", "marsh", "urban"}
+
+// ReadRules reads the movement costs and the supply range from <dataDir>/rules.yaml.
+func ReadRules(dataDir string) (Rules, error) {
+	var f struct {
+		Supply struct {
+			MaxRange float64 `yaml:"max_range"`
+		} `yaml:"supply"`
+		Terrain []struct {
+			ID       string  `yaml:"id"`
+			MoveCost float64 `yaml:"move_cost"`
+			Passable *bool   `yaml:"passable"`
+		} `yaml:"terrain"`
+	}
+	data, err := os.ReadFile(filepath.Join(dataDir, "rules.yaml"))
+	if err == nil {
+		err = yaml.Unmarshal(data, &f)
+	}
+	if err != nil {
+		return Rules{}, fmt.Errorf("mapgen: %w", err)
+	}
+	r := Rules{MoveCost: map[string]float64{}, SupplyMaxRange: f.Supply.MaxRange}
+	for _, t := range f.Terrain {
+		if t.Passable == nil || *t.Passable {
+			r.MoveCost[t.ID] = t.MoveCost / 1000
+		}
+	}
+	return r, r.check()
+}
+
+func (r Rules) check() error {
+	if r.SupplyMaxRange <= 0 {
+		return errors.New("mapgen: rules need supply.max_range (see ReadRules)")
+	}
+	for _, k := range terrainsUsed {
+		if r.MoveCost[k] <= 0 {
+			return fmt.Errorf("mapgen: rules need a passable terrain %q with a move_cost", k)
+		}
+	}
+	return nil
+}
+
+var validName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 func (o *Options) defaults() {
 	if o.Name == "" {
@@ -52,11 +109,11 @@ const (
 	hillShare     = 0.15
 	forestShare   = 0.32
 	marshShare    = 0.05
-	stateSize     = 9   // provinces per state, on average
-	minStateSize  = 3   // smaller states are merged into a neighbour
-	hubReach      = 200 // km plains-equivalent from the nearest supply hub (supply fades out at 240)
-	divisionsEach = 24  // infantry per faction on the border
-	armorEach     = 6   // armour per faction around the capital
+	stateSize     = 9       // provinces per state, on average
+	minStateSize  = 3       // smaller states are merged into a neighbour
+	hubShare      = 5.0 / 6 // of the supply range: how far a province may lie from its nearest hub
+	divisionsEach = 24      // infantry per faction on the border
+	armorEach     = 6       // armour per faction around the capital
 )
 
 type Province struct {
@@ -120,6 +177,12 @@ func Generate(opt Options) (*Map, error) {
 	opt.defaults()
 	if opt.Land < 50 || opt.Factions < 2 || opt.Factions > 8 || opt.Spacing < 5 {
 		return nil, errors.New("mapgen: need at least 50 land provinces, 2 to 8 factions and a spacing of 5 km or more")
+	}
+	if !validName.MatchString(opt.Name) {
+		return nil, fmt.Errorf("mapgen: name %q: use lower case letters, digits, - and _", opt.Name)
+	}
+	if err := opt.Rules.check(); err != nil {
+		return nil, err
 	}
 	m := &Map{Opt: opt, rng: rand.New(rand.NewPCG(opt.Seed, 0x73616e64))}
 	m.place()
@@ -776,15 +839,15 @@ func (m *Map) economy() {
 	}
 }
 
-// moveFactor approximates the movement cost of terrain, per mille, as in data/rules.yaml.
-var moveFactor = map[string]float64{"plains": 1, "forest": 1.5, "hills": 1.5, "mountain": 2.5, "urban": 1.2, "marsh": 2}
-
 // supply puts supply hubs where provinces would be far from one, and lays
 // railways from each faction's capital to its hubs.
 func (m *Map) supply() {
 	for f := range m.Factions {
 		own := func(i int) bool { return m.Provinces[i].Land && m.States[m.Provinces[i].State].Faction == f }
-		cost := func(e, to int) float64 { return float64(m.Edges[e].Dist) * moveFactor[m.Provinces[to].Terrain] }
+		cost := func(e, to int) float64 {
+			return float64(m.Edges[e].Dist) * m.Opt.Rules.MoveCost[m.Provinces[to].Terrain]
+		}
+		hubReach := m.Opt.Rules.SupplyMaxRange * hubShare
 		hubs := []int{m.Factions[f].Capital}
 		for {
 			dist, _ := m.dijkstra(hubs, own, cost)
