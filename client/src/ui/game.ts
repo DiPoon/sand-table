@@ -4,7 +4,7 @@ import { CommandStatus, type CommandResult, MatchPhase, type Error as ServerErro
 import { Camera, geometryFor, type MapGeometry, type Point } from "../geometry";
 import { attachInput } from "../input";
 import { clearSession, type ConnState, defaultURL, Session, type JoinInfo } from "../net";
-import { type Highlight, Renderer } from "../render";
+import { type Highlight, type MapMode, Renderer } from "../render";
 import { type Change, type StaticInfo, Store } from "../store";
 import { S } from "../strings";
 import { el } from "./dom";
@@ -45,7 +45,8 @@ export class Game {
   private geo: MapGeometry | null = null;
   private mapOf: StaticInfo | null = null;
   private fitted = false;
-  private hl: Highlight = { province: -1, hover: -1, selected: this.selected, pending: [] };
+  private hl: Highlight = { province: -1, hover: -1, selected: this.selected, pending: [], mode: "political" };
+  private readonly modeButtons = new Map<MapMode, HTMLButtonElement>();
   private pending = new Map<number, Pending>();
   private frame = 0;
   private blink: ReturnType<typeof setTimeout> | null = null;
@@ -67,6 +68,18 @@ export class Game {
     this.renderer = new Renderer(this.canvas);
     this.panel = new InfoPanel(wrap, { selectDivision: (id) => this.selectOnly(id) });
     el("div", "hint", wrap, S.hintSelect);
+    const modes = el("div", "mapmodes", wrap);
+    modes.setAttribute("role", "group");
+    modes.setAttribute("aria-label", S.mapMode);
+    for (const mode of ["political", "terrain", "states"] as MapMode[]) {
+      const b = el("button", "", modes, S.modes[mode]);
+      b.type = "button";
+      b.dataset.mode = mode;
+      b.addEventListener("pointerdown", (e) => e.preventDefault()); // keep Space for pausing
+      b.addEventListener("click", () => this.setMode(mode));
+      this.modeButtons.set(mode, b);
+    }
+    this.setMode("political");
     this.toasts = new Toasts(wrap);
     this.lobby = new Lobby(wrap, () => this.session.send({ case: "startMatch", value: {} }));
     this.banner = el("div", "banner", wrap, S.reconnecting);
@@ -134,6 +147,20 @@ export class Game {
     this.topbar.update(this.store, this.conn);
     this.lobby.update(this.store);
     this.banner.hidden = !this.lost;
+  }
+
+  setMode(mode: MapMode) {
+    this.hl.mode = mode;
+    for (const [m, b] of this.modeButtons) {
+      b.classList.toggle("active", m === mode);
+      b.setAttribute("aria-pressed", String(m === mode));
+    }
+    this.requestDraw();
+  }
+
+  /** The map geometry, for tests. */
+  get geometry(): MapGeometry | null {
+    return this.geo;
   }
 
   private setSpeed(speed: number) {
